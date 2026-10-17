@@ -213,3 +213,30 @@ def test_an_integer_heading_that_skips_a_number_stays_body_text() -> None:
         ("FDA Test Guidance I.1", "1. First 3. Third"),
         ("FDA Test Guidance I.2", "2. Second"),
     ]
+
+
+def fixture_source(name: str, **fields: object) -> tuple[Source, bytes]:
+    pdf = (Path(__file__).parent / "fixtures" / name).read_bytes()
+    update = {"key": name.removesuffix(".pdf"), "sha256": hashlib.sha256(pdf).hexdigest()}
+    return SOURCE.model_copy(update={**update, **fields}), pdf
+
+
+def test_a_rotated_page_drops_its_running_header_and_reads_its_table_cell_by_cell() -> None:
+    source, pdf = fixture_source(
+        "rotated.pdf",
+        citation="ICH Test",
+        first_body_heading="1. INTRODUCTION",
+        heading_ranks=((Kind.digit,),),
+    )
+
+    rows = guidance.parse(source, pdf)
+
+    assert [(row.citation, row.text) for row in rows] == [
+        (
+            "ICH Test 1",
+            "1. INTRODUCTION Body of introduction."
+            " Dose to be Administered Start and Maximum Doses"
+            " Total dose under 100 ug Maximal and starting doses",
+        ),
+        ("ICH Test 2", "2. SCOPE Body of scope."),
+    ]

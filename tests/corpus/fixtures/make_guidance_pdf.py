@@ -39,9 +39,49 @@ def build() -> bytes:
         page = document.new_page(width=612, height=792)
         for y, font, text in lines:
             page.insert_text((72, y), text, fontname=font, fontsize=11)
+    return _bytes(document)
+
+
+HEADER = "Guidance on Nonclinical Safety Studies"
+TABLE = [
+    [("Dose to be", "Administered"), ("Start and", "Maximum Doses")],
+    [("Total dose", "under 100 ug"), ("Maximal and", "starting doses")],
+]
+
+
+def build_rotated() -> bytes:
+    document = pymupdf.open()
+    for number, heading in [(1, "1. INTRODUCTION"), (2, None), (3, "2. SCOPE")]:
+        page = document.new_page(width=612, height=792)
+        if heading is None:
+            page.set_rotation(90)
+        _upright_text(page, 72, 78, HEADER)
+        _upright_text(page, 300, page.rect.height - 40, str(number))
+        if heading is not None:
+            _upright_text(page, 72, 140, heading, "hebo")
+            _upright_text(page, 72, 160, f"Body of {heading.split()[1].lower()}.")
+            continue
+        for row, cells in enumerate(TABLE):
+            for col, lines in enumerate(cells):
+                left, top = 72 + col * 200, 140 + row * 50
+                cell = pymupdf.Rect(left, top, left + 200, top + 50)
+                page.draw_rect(cell * page.derotation_matrix)
+                for i, line in enumerate(lines):
+                    _upright_text(page, left + 6, top + 18 + i * 14, line)
+    return _bytes(document)
+
+
+def _upright_text(page: pymupdf.Page, x: float, y: float, line: str, font: str = "helv") -> None:
+    at = pymupdf.Point(x, y) * page.derotation_matrix
+    page.insert_text(at, line, fontname=font, fontsize=11, rotate=page.rotation)
+
+
+def _bytes(document: pymupdf.Document) -> bytes:
     data: bytes = document.tobytes(garbage=4, deflate=True, no_new_id=True)
     return data
 
 
 if __name__ == "__main__":
-    (Path(__file__).parent / "guidance.pdf").write_bytes(build())
+    fixtures = Path(__file__).parent
+    (fixtures / "guidance.pdf").write_bytes(build())
+    (fixtures / "rotated.pdf").write_bytes(build_rotated())

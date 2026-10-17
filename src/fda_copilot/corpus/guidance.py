@@ -103,8 +103,19 @@ class _PdfLine(NamedTuple):
     top: float
     bottom: float
     left: float
+    right: float
     text: str
     styled: bool
+
+
+_Box = tuple[float, float, float, float]
+
+
+class _Page(NamedTuple):
+    lines: list[_PdfLine]
+    tables: list[list[_Box]]
+    height: float
+    margin: float
 
 
 def parse(source: Source, pdf: bytes) -> list[RegSection]:
@@ -123,25 +134,31 @@ def body(source: Source, pdf: bytes) -> list[Line]:
 
 def read_lines(pdf: bytes) -> list[Line]:
     with pymupdf.Document(stream=pdf, filetype="pdf") as document:  # type: ignore[no-untyped-call]
-        pages = [(_pdf_lines(page), page.rect.height) for page in document]
+        pages = [_read_page(page) for page in document]
     counts = Counter(
         shape
-        for lines, height in pages
-        for shape in {_shape(line.text) for line in lines if _in_margin(line, height)}
+        for page in pages
+        for shape in {_shape(line.text) for line in page.lines if _in_margin(line, page)}
     )
     repeated = max(2, math.ceil(len(pages) * _FURNITURE_PAGE_SHARE))
     furniture = {shape for shape, count in counts.items() if count >= repeated}
     return [
-        merged
-        for number, (lines, height) in enumerate(pages, 1)
-        for merged in _merge_rows(
+        line
+        for number, page in enumerate(pages, 1)
+        for line in _page_rows(
             number,
-            [ln for ln in lines if not (_in_margin(ln, height) and _shape(ln.text) in furniture)],
+            [
+                ln
+                for ln in page.lines
+                if not (_in_margin(ln, page) and _shape(ln.text) in furniture)
+            ],
+            page.tables,
         )
     ]
 
 
-def _pdf_lines(page: pymupdf.Page) -> list[_PdfLine]:
+def _read_page(page: pymupdf.Page) -> _Page:
+    m = page.rotation_matrix
     text_page: dict[str, Any] = page.get_text(  # type: ignore[no-untyped-call]
         "dict", flags=pymupdf.TEXTFLAGS_TEXT
     )
@@ -150,30 +167,58 @@ def _pdf_lines(page: pymupdf.Page) -> list[_PdfLine]:
         for line in block.get("lines", []):
             spans = [s for s in line["spans"] if s["text"].strip()]
             if spans:
-                left, top, _, bottom = line["bbox"]
+                x0, y0, x1, y1 = line["bbox"]
+                xs, ys = zip(
+                    *(
+                        (m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f)
+                        for x in (x0, x1)
+                        for y in (y0, y1)
+                    ),
+                    strict=True,
+                )
                 bold_or_italic = spans[0]["flags"] & (
                     pymupdf.TEXT_FONT_BOLD | pymupdf.TEXT_FONT_ITALIC
                 )
                 text = " ".join("".join(s["text"] for s in line["spans"]).split())
-                lines.append(_PdfLine(top, bottom, left, text, bool(bold_or_italic)))
-    return lines
+                lines.append(
+                    _PdfLine(min(ys), max(ys), min(xs), max(xs), text, bool(bold_or_italic))
+                )
+    tables = [
+        [tuple(cell) for row in table.rows for cell in row.cells if cell is not None]
+        for table in page.find_tables().tables  # type: ignore[no-untyped-call]
+    ]
+    return _Page(lines, tables, page.rect.height, _MARGIN * max(page.rect.width, page.rect.height))
 
 
-def _merge_rows(page: int, lines: list[_PdfLine]) -> list[Line]:
+def _page_rows(page: int, lines: list[_PdfLine], tables: list[list[_Box]]) -> list[Line]:
+    placed: list[tuple[float, float, Line]] = []
+    for cells in tables:
+        for cell in cells:
+            inside = [ln for ln in lines if _inside(ln, cell)]
+            lines = [ln for ln in lines if ln not in inside]
+            if inside:
+                text = " ".join(ln.text for ln in sorted(inside))
+                placed.append((cell[1], cell[0], Line(page, text, inside[0].styled)))
     rows: list[list[_PdfLine]] = []
     for line in sorted(lines):
         if rows and line.top - rows[-1][0].top <= 2:
             rows[-1].append(line)
         else:
             rows.append([line])
-    return [
-        Line(page, " ".join(line.text for line in row), row[0].styled)
-        for row in (sorted(row, key=lambda line: line.left) for row in rows)
-    ]
+    for row in rows:
+        row.sort(key=lambda line: line.left)
+        text = " ".join(line.text for line in row)
+        placed.append((row[0].top, row[0].left, Line(page, text, row[0].styled)))
+    return [line for _, _, line in sorted(placed, key=lambda item: item[:2])]
 
 
-def _in_margin(line: _PdfLine, height: float) -> bool:
-    return line.bottom < height * _MARGIN or line.top > height * (1 - _MARGIN)
+def _inside(line: _PdfLine, cell: _Box) -> bool:
+    x, y = (line.left + line.right) / 2, (line.top + line.bottom) / 2
+    return cell[0] <= x <= cell[2] and cell[1] <= y <= cell[3]
+
+
+def _in_margin(line: _PdfLine, page: _Page) -> bool:
+    return line.bottom < page.margin or line.top > page.height - page.margin
 
 
 def _shape(text: str) -> str:
