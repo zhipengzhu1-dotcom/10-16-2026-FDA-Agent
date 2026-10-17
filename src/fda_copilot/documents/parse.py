@@ -13,10 +13,9 @@ import pymupdf
 from docx.document import Document
 from docx.opc.exceptions import PackageNotFoundError
 from docx.oxml.ns import qn
+from docx.oxml.text.run import CT_R
 from docx.oxml.xmlchemy import BaseOxmlElement
-from docx.table import Table
 from docx.text.paragraph import Paragraph
-from docx.text.run import Run
 
 from fda_copilot.domain.models import CharSpan, DocSection, DocSectionId
 
@@ -31,11 +30,14 @@ class ParsedDocument:
 
     `text` is the canonical extracted text: every extracted line in document order, each
     followed by one newline. A PDF line is one pymupdf text line, a DOCX line is one body
-    paragraph or one table row with cells joined by tabs. DOCX text inside content controls
-    is included, and tracked changes read as accepted: insertions kept, deletions dropped.
-    Every section's span indexes into `text`, its `text` equals that slice, and the spans
-    tile `text` in order with no gap and no overlap. Text before the first heading is a
-    section whose heading is empty.
+    paragraph or one table row with cells joined by tabs. A cell's text is its own lines
+    joined by newlines, so a table nested in a cell adds one line per nested row, and a
+    merged cell's text appears once, in the `w:tc` that holds it. DOCX content controls,
+    custom XML and smart tags are read through at every level (body, table, row, cell), and
+    tracked changes read as accepted: insertions kept, deletions dropped. Every section's
+    span indexes into `text`, its `text` equals that slice, and the spans tile `text` in
+    order with no gap and no overlap. Text before the first heading is a section whose
+    heading is empty.
     """
 
     text: str
@@ -75,6 +77,10 @@ class _PdfLine:
 _SECTION_NUMBER = re.compile(r"\s*(\d+(?:\.\d+)*\.?)(?:\s+|$)")
 _TOC_LEADER = re.compile(r"\.{5,}|…{2,}")
 _MAX_HEADING_CHARS = 200
+_WRAPPERS = frozenset(qn(tag) for tag in ("w:sdt", "w:sdtContent", "w:customXml", "w:smartTag"))
+_BLOCKS = frozenset((qn("w:p"), qn("w:tbl")))
+_ROW = frozenset((qn("w:tr"),))
+_CELL = frozenset((qn("w:tc"),))
 
 
 def parse_document(filename: str, data: bytes) -> ParsedDocument:
@@ -124,52 +130,51 @@ def _docx_lines(filename: str, data: bytes) -> list[_Line]:
         SyntaxError,
     ) as error:
         raise UnsupportedDocument(f"{filename}: not a readable .docx file") from error
-    lines: list[_Line] = []
-    for element in _blocks(document.element.body):
+    return [
+        _Line(text, _heading(element, text, document))
+        for element, text in _block_texts(document.element.body)
+    ]
+
+
+def _block_texts(container: BaseOxmlElement) -> Iterator[tuple[BaseOxmlElement, str]]:
+    for element in _children(container, _BLOCKS):
         if element.tag == qn("w:p"):
-            paragraph = Paragraph(element, document)
-            text = _paragraph_text(paragraph)
-            heading = _squash(text) if _is_heading_style(paragraph) else ""
-            lines.append(_Line(text, heading or None))
+            yield element, "".join(run.text for run in _runs(element))
         else:
-            lines.extend(
-                _Line("\t".join(_cell_text(cell._tc, document) for cell in row.cells))
-                for row in Table(element, document).rows
-            )
-    return lines
+            for row in _children(element, _ROW):
+                yield (
+                    row,
+                    "\t".join(
+                        "\n".join(text for _, text in _block_texts(tc))
+                        for tc in _children(row, _CELL)
+                    ),
+                )
 
 
-def _blocks(container: BaseOxmlElement) -> Iterator[BaseOxmlElement]:
+def _children(container: BaseOxmlElement, tags: frozenset[str]) -> Iterator[BaseOxmlElement]:
     for child in container.iterchildren():
-        if child.tag in (qn("w:p"), qn("w:tbl")):
+        if child.tag in tags:
             yield child
-        elif child.tag in (qn("w:sdt"), qn("w:sdtContent"), qn("w:customXml")):
-            yield from _blocks(child)
+        elif child.tag in _WRAPPERS:
+            yield from _children(child, tags)
 
 
-def _paragraph_text(paragraph: Paragraph) -> str:
-    return "".join(Run(r, paragraph).text for r in _runs(paragraph._p))
-
-
-def _runs(container: BaseOxmlElement) -> Iterator[BaseOxmlElement]:
+def _runs(container: BaseOxmlElement) -> Iterator[CT_R]:
     for child in container.iterchildren():
-        if child.tag == qn("w:r"):
+        if isinstance(child, CT_R):
             yield child
         elif child.tag not in (qn("w:del"), qn("w:moveFrom")):
             yield from _runs(child)
 
 
-def _cell_text(tc: BaseOxmlElement, document: Document) -> str:
-    return "\n".join(
-        _paragraph_text(Paragraph(element, document))
-        for element in _blocks(tc)
-        if element.tag == qn("w:p")
-    )
-
-
-def _is_heading_style(paragraph: Paragraph) -> bool:
-    name = (paragraph.style.name if paragraph.style is not None else None) or ""
-    return name == "Title" or name.startswith("Heading")
+def _heading(element: BaseOxmlElement, text: str, document: Document) -> str | None:
+    if element.tag != qn("w:p"):
+        return None
+    style = Paragraph(element, document).style
+    name = (style.name if style is not None else None) or ""
+    if name != "Title" and not name.startswith("Heading"):
+        return None
+    return _squash(text) or None
 
 
 def _pdf_lines(filename: str, data: bytes) -> list[_Line]:

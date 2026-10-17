@@ -262,3 +262,64 @@ def test_pdf_heading_drops_a_superscript_footnote_marker() -> None:
     assert [(section.heading, section.text) for section in sections] == [
         ("APPENDIX 1. EVENTS", "APPENDIX 1. EVENTS1\nVisits happen weekly.\n"),
     ]
+
+
+def row(*cells: str) -> str:
+    return "<w:tr>" + "".join(cells) + "</w:tr>"
+
+
+def cell(text: str) -> str:
+    return f"<w:tc><w:p><w:r><w:t>{text}</w:t></w:r></w:p></w:tc>"
+
+
+def sdt(content: str) -> str:
+    return f"<w:sdt><w:sdtPr/><w:sdtContent>{content}</w:sdtContent></w:sdt>"
+
+
+def test_docx_keeps_rows_and_cells_wrapped_in_content_controls() -> None:
+    data = docx_with_body_xml(
+        f"<w:p {W}><w:r><w:t>Rows</w:t></w:r></w:p>",
+        f"<w:tbl {W}>"
+        + row(cell("R1A"), cell("R1B"))
+        + sdt(row(cell("ROW_SDT_A"), cell("ROW_SDT_B")))
+        + row(cell("R3A"), sdt(cell("CELL_LEVEL_SDT")))
+        + "<w:customXml w:element='x'>"
+        + row(f"<w:customXml w:element='y'>{cell('XML_A')}</w:customXml>", cell("XML_B"))
+        + "</w:customXml></w:tbl>",
+    )
+    assert parse_document("rows.docx", data).text == (
+        "1. Consent\nbefore\nRows\nR1A\tR1B\nROW_SDT_A\tROW_SDT_B\nR3A\tCELL_LEVEL_SDT\n"
+        "XML_A\tXML_B\n"
+    )
+
+
+def test_docx_renders_a_nested_table_as_cell_lines() -> None:
+    nested = (
+        "<w:tbl>" + row(cell("N1A"), cell("N1B")) + sdt(row(cell("N2A"), cell("N2B"))) + "</w:tbl>"
+    )
+    data = docx_with_body_xml(
+        f"<w:tbl {W}>"
+        + row(
+            cell("OUTER_A"),
+            "<w:tc><w:p><w:r><w:t>P1</w:t></w:r></w:p>"
+            + sdt(nested)
+            + "<w:p><w:r><w:t>P2</w:t></w:r></w:p></w:tc>",
+        )
+        + "</w:tbl>",
+    )
+    assert parse_document("nested.docx", data).text == (
+        "1. Consent\nbefore\nOUTER_A\tP1\nN1A\tN1B\nN2A\tN2B\nP2\n"
+    )
+
+
+def test_docx_reads_merged_cell_text_once() -> None:
+    data = docx_with_body_xml(
+        f"<w:tbl {W}>"
+        + row(
+            cell("SPAN").replace("<w:tc>", "<w:tc><w:tcPr><w:gridSpan w:val='2'/></w:tcPr>"),
+            cell("TOP").replace("<w:tc>", "<w:tc><w:tcPr><w:vMerge w:val='restart'/></w:tcPr>"),
+        )
+        + row(cell("A"), cell("B"), "<w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p/></w:tc>")
+        + "</w:tbl>",
+    )
+    assert parse_document("merged.docx", data).text == ("1. Consent\nbefore\nSPAN\tTOP\nA\tB\t\n")
