@@ -196,3 +196,20 @@ def test_a_wrong_pin_on_the_last_source_writes_nothing(
         conn.execute("DELETE FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'")
 
     assert (written, after_a_good_run) == ((0,), (7,))
+
+
+def test_an_integer_heading_that_skips_a_number_stays_body_text() -> None:
+    lines = [
+        Line(1, "I. INTRODUCTION", True),
+        Line(1, "1. First", True),
+        Line(1, "3. Third", True),
+        Line(1, "2. Second", True),
+    ]
+
+    rows = guidance.chunk(SOURCE, lines)
+
+    assert [(row.citation, row.text) for row in rows] == [
+        ("FDA Test Guidance I", "I. INTRODUCTION"),
+        ("FDA Test Guidance I.1", "1. First 3. Third"),
+        ("FDA Test Guidance I.2", "2. Second"),
+    ]
