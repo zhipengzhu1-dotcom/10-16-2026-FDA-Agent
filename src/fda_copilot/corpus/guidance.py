@@ -22,6 +22,7 @@ SOURCES = files("fda_copilot.corpus") / "guidance_sources.yaml"
 MAX_FDA_GUIDANCE = 8
 _MARGIN = 0.12
 _FURNITURE_PAGE_SHARE = 0.5
+_MARKERS = re.compile(r"\d{1,3}(?:, ?\d{1,3})*,?")
 
 
 class Kind(StrEnum):
@@ -97,6 +98,7 @@ class Line(NamedTuple):
     page: int
     text: str
     styled: bool
+    notes: tuple[str, ...] = ()
 
 
 class _PdfLine(NamedTuple):
@@ -106,6 +108,9 @@ class _PdfLine(NamedTuple):
     right: float
     text: str
     styled: bool
+    size: float
+    lead: str
+    markers: tuple[str, ...]
 
 
 _Box = tuple[float, float, float, float]
@@ -129,12 +134,20 @@ def body(source: Source, pdf: bytes) -> list[Line]:
     )
     if start is None:
         raise ValueError(f"{source.key}: no line reads {source.first_body_heading!r}")
-    return lines[start:]
+    first = lines[start]
+    cited_above = [n for line in lines[:start] if line.page == first.page for n in line.notes]
+    return [first._replace(notes=(*cited_above, *first.notes)), *lines[start + 1 :]]
 
 
 def read_lines(pdf: bytes) -> list[Line]:
     with pymupdf.Document(stream=pdf, filetype="pdf") as document:  # type: ignore[no-untyped-call]
         pages = [_read_page(page) for page in document]
+    sizes: Counter[float] = Counter()
+    for page in pages:
+        for line in page.lines:
+            sizes[line.size] += len(line.text)
+    body_size = sizes.most_common(1)[0][0]
+    pages = [page._replace(lines=_attach_markers(page.lines, body_size)) for page in pages]
     counts = Counter(
         shape
         for page in pages
@@ -142,19 +155,76 @@ def read_lines(pdf: bytes) -> list[Line]:
     )
     repeated = max(2, math.ceil(len(pages) * _FURNITURE_PAGE_SHARE))
     furniture = {shape for shape, count in counts.items() if count >= repeated}
-    return [
-        line
-        for number, page in enumerate(pages, 1)
-        for line in _page_rows(
-            number,
-            [
-                ln
-                for ln in page.lines
-                if not (_in_margin(ln, page) and _shape(ln.text) in furniture)
-            ],
-            page.tables,
+    rows: list[tuple[Line, tuple[str, ...]]] = []
+    notes: list[tuple[int, str, str]] = []
+    for number, page in enumerate(pages, 1):
+        kept = [
+            ln for ln in page.lines if not (_in_margin(ln, page) and _shape(ln.text) in furniture)
+        ]
+        flow, footnotes = _split_footnotes(kept, body_size)
+        rows += _page_rows(number, flow, page.tables)
+        notes += [(number, marker, text) for marker, text in footnotes]
+    return _attach_notes(rows, notes)
+
+
+def _attach_markers(lines: list[_PdfLine], body_size: float) -> list[_PdfLine]:
+    attached = list(lines)
+    for marker in lines:
+        if not (_MARKERS.fullmatch(marker.text) and marker.size < body_size - 1):
+            continue
+        host = next(
+            (
+                i
+                for i, line in enumerate(attached)
+                if line is not marker
+                and abs(line.right - marker.left) <= 3
+                and marker.top < line.bottom
+                and line.top < marker.bottom
+            ),
+            None,
         )
-    ]
+        numbers = tuple(re.findall(r"\d+", marker.text))
+        if host is None:
+            attached[attached.index(marker)] = marker._replace(markers=numbers)
+        else:
+            line = attached[host]
+            attached[host] = line._replace(
+                text=line.text + marker.text, right=marker.right, markers=(*line.markers, *numbers)
+            )
+            attached.remove(marker)
+    return attached
+
+
+def _split_footnotes(
+    lines: list[_PdfLine], body_size: float
+) -> tuple[list[_PdfLine], list[tuple[str, str]]]:
+    ordered = sorted(lines)
+    small = len(ordered)
+    while small and ordered[small - 1].size < body_size - 0.5:
+        small -= 1
+    first = next((i for i in range(small, len(ordered)) if ordered[i].lead), len(ordered))
+    footnotes: list[tuple[str, list[str]]] = []
+    for line in ordered[first:]:
+        if line.lead:
+            footnotes.append((line.lead, [line.text]))
+        else:
+            footnotes[-1][1].append(line.text)
+    return ordered[:first], [(marker, " ".join(texts)) for marker, texts in footnotes]
+
+
+def _attach_notes(
+    rows: list[tuple[Line, tuple[str, ...]]], notes: list[tuple[int, str, str]]
+) -> list[Line]:
+    attached: list[list[str]] = [[] for _ in rows]
+    for page, marker, text in notes:
+        cited = [i for i, (line, markers) in enumerate(rows) if marker in markers]
+        same_page = [i for i in cited if rows[i][0].page == page]
+        page_before = [i for i in cited if rows[i][0].page == page - 1]
+        last_on_page = [i for i, (line, _) in enumerate(rows) if line.page <= page][-1:]
+        target = (same_page or page_before or last_on_page)[:1]
+        for i in target:
+            attached[i].append(text)
+    return [line._replace(notes=tuple(n)) for (line, _), n in zip(rows, attached, strict=True)]
 
 
 def _read_page(page: pymupdf.Page) -> _Page:
@@ -180,8 +250,25 @@ def _read_page(page: pymupdf.Page) -> _Page:
                     pymupdf.TEXT_FONT_BOLD | pymupdf.TEXT_FONT_ITALIC
                 )
                 text = " ".join("".join(s["text"] for s in line["spans"]).split())
+                size = max(s["size"] for s in spans)
+                small = [
+                    s["text"].strip()
+                    if _MARKERS.fullmatch(s["text"].strip()) and s["size"] < size - 1
+                    else ""
+                    for s in spans
+                ]
                 lines.append(
-                    _PdfLine(min(ys), max(ys), min(xs), max(xs), text, bool(bold_or_italic))
+                    _PdfLine(
+                        min(ys),
+                        max(ys),
+                        min(xs),
+                        max(xs),
+                        text,
+                        bool(bold_or_italic),
+                        size,
+                        small[0],
+                        tuple(m for marker in small for m in re.findall(r"\d+", marker)),
+                    )
                 )
     tables = [
         [tuple(cell) for row in table.rows for cell in row.cells if cell is not None]
@@ -190,15 +277,16 @@ def _read_page(page: pymupdf.Page) -> _Page:
     return _Page(lines, tables, page.rect.height, _MARGIN * max(page.rect.width, page.rect.height))
 
 
-def _page_rows(page: int, lines: list[_PdfLine], tables: list[list[_Box]]) -> list[Line]:
-    placed: list[tuple[float, float, Line]] = []
+def _page_rows(
+    page: int, lines: list[_PdfLine], tables: list[list[_Box]]
+) -> list[tuple[Line, tuple[str, ...]]]:
+    groups: list[tuple[float, float, list[_PdfLine]]] = []
     for cells in tables:
         for cell in cells:
-            inside = [ln for ln in lines if _inside(ln, cell)]
+            inside = sorted(ln for ln in lines if _inside(ln, cell))
             lines = [ln for ln in lines if ln not in inside]
             if inside:
-                text = " ".join(ln.text for ln in sorted(inside))
-                placed.append((cell[1], cell[0], Line(page, text, inside[0].styled)))
+                groups.append((cell[1], cell[0], inside))
     rows: list[list[_PdfLine]] = []
     for line in sorted(lines):
         if rows and line.top - rows[-1][0].top <= 2:
@@ -207,9 +295,14 @@ def _page_rows(page: int, lines: list[_PdfLine], tables: list[list[_Box]]) -> li
             rows.append([line])
     for row in rows:
         row.sort(key=lambda line: line.left)
-        text = " ".join(line.text for line in row)
-        placed.append((row[0].top, row[0].left, Line(page, text, row[0].styled)))
-    return [line for _, _, line in sorted(placed, key=lambda item: item[:2])]
+        groups.append((row[0].top, row[0].left, row))
+    return [
+        (
+            Line(page, " ".join(ln.text for ln in group), group[0].styled),
+            tuple(marker for ln in group for marker in ln.markers),
+        )
+        for _, _, group in sorted(groups, key=lambda item: item[:2])
+    ]
 
 
 def _inside(line: _PdfLine, cell: _Box) -> bool:
@@ -218,7 +311,7 @@ def _inside(line: _PdfLine, cell: _Box) -> bool:
 
 
 def _in_margin(line: _PdfLine, page: _Page) -> bool:
-    return line.bottom < page.margin or line.top > page.height - page.margin
+    return line.top < page.margin or line.bottom > page.height - page.margin
 
 
 def _shape(text: str) -> str:
@@ -353,6 +446,7 @@ class _Section:
     title: str
     page: int
     lines: list[str]
+    notes: list[str]
 
 
 def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
@@ -366,12 +460,15 @@ def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
             if not sections:
                 raise ValueError(f"{source.key}: body starts with a non-heading {line.text!r}")
             sections[-1].lines.append(line.text)
+            sections[-1].notes.extend(line.notes)
             continue
         stack = [n for n in stack if n.rank < node.rank] + [node]
         last = {rank: labels for rank, labels in last.items() if rank <= node.rank}
         last.setdefault(node.rank, {})[node.kind] = node.label
         title = next((n.title for n in reversed(stack) if n.title), source.title)
-        sections.append(_Section(_cite(source, stack), title, line.page, [line.text]))
+        sections.append(
+            _Section(_cite(source, stack), title, line.page, [line.text], list(line.notes))
+        )
 
     repeated = [c for c, n in Counter(s.citation for s in sections).items() if n > 1]
     if repeated:
@@ -381,7 +478,7 @@ def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
             citation=RegCitation(s.citation),
             source=source.source,
             title=s.title,
-            text=" ".join(s.lines),
+            text=" ".join([*s.lines, *s.notes]),
             effective_date=source.issued,
             url=HttpUrl(f"{source.url}#page={s.page}"),
         )

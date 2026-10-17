@@ -76,6 +76,45 @@ def _upright_text(page: pymupdf.Page, x: float, y: float, line: str, font: str =
     page.insert_text(at, line, fontname=font, fontsize=11, rotate=page.rotation)
 
 
+FOOTNOTED = [
+    [
+        (100, "hebo", "I. INTRODUCTION", ""),
+        (140, "helv", "The rule applies to drugs", "1"),
+        (160, "helv", "and the sentence runs onto", ""),
+    ],
+    [
+        (80, "helv", "the next page.", "2"),
+        (120, "hebo", "II. DISCUSSION", ""),
+        (140, "helv", "Closing text.", ""),
+    ],
+]
+
+
+def build_footnoted() -> bytes:
+    document = pymupdf.open()
+    for number, lines in enumerate(FOOTNOTED, 1):
+        page = document.new_page(width=612, height=792)
+        page.insert_text((72, 40), "Contains Nonbinding Recommendations", fontname="hebo")
+        inline = number == 1
+        for y, font, text, marker in lines:
+            page.insert_text((72, y), text, fontname=font, fontsize=12)
+            if marker and inline:
+                _raised_marker(page, y, text, font, marker)
+        footnote = f" The {['first', 'second'][number - 1]} footnote."
+        page.insert_text((72, 680), str(number), fontname="helv", fontsize=6.5)
+        page.insert_text((76, 680), footnote, fontname="helv", fontsize=10)
+        page.insert_text((300, 707), str(number), fontname="helv", fontsize=10)
+        for y, font, text, marker in lines:
+            if marker and not inline:
+                _raised_marker(page, y, text, font, marker)
+    return _bytes(document)
+
+
+def _raised_marker(page: pymupdf.Page, y: float, text: str, font: str, marker: str) -> None:
+    right = 72 + pymupdf.get_text_length(text, fontname=font, fontsize=12)
+    page.insert_text((right, y - 4), marker, fontname="helv", fontsize=8)
+
+
 def _bytes(document: pymupdf.Document) -> bytes:
     data: bytes = document.tobytes(garbage=4, deflate=True, no_new_id=True)
     return data
@@ -85,3 +124,4 @@ if __name__ == "__main__":
     fixtures = Path(__file__).parent
     (fixtures / "guidance.pdf").write_bytes(build())
     (fixtures / "rotated.pdf").write_bytes(build_rotated())
+    (fixtures / "footnoted.pdf").write_bytes(build_footnoted())

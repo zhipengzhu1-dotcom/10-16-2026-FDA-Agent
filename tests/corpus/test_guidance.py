@@ -240,3 +240,20 @@ def test_a_rotated_page_drops_its_running_header_and_reads_its_table_cell_by_cel
         ),
         ("ICH Test 2", "2. SCOPE Body of scope."),
     ]
+
+
+def test_footnotes_follow_the_section_that_cites_them_and_a_marker_in_the_top_margin_counts() -> (
+    None
+):
+    source, pdf = fixture_source("footnoted.pdf")
+
+    rows = guidance.parse(source, pdf)
+
+    assert [(row.citation, row.text) for row in rows] == [
+        (
+            "FDA Test Guidance I",
+            "I. INTRODUCTION The rule applies to drugs1 and the sentence runs onto the next page.2"
+            " 1 The first footnote. 2 The second footnote.",
+        ),
+        ("FDA Test Guidance II", "II. DISCUSSION Closing text."),
+    ]
