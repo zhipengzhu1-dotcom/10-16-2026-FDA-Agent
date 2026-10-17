@@ -19,6 +19,7 @@ from fda_copilot.domain.models import RegCitation, RegSection, RegSource
 SOURCES = Path(__file__).parents[3] / "corpus" / "guidance_sources.yaml"
 MAX_FDA_GUIDANCE = 8
 _MARGIN = 0.12
+_FURNITURE_PAGE_SHARE = 0.5
 
 
 class Kind(StrEnum):
@@ -45,8 +46,8 @@ class Source(BaseModel):
     url: HttpUrl
     sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
     why: Annotated[str, Field(pattern=r"\S")]
-    starts_at: str
-    levels: tuple[tuple[Kind, ...], ...]
+    first_body_heading: str
+    heading_ranks: tuple[tuple[Kind, ...], ...]
     unstyled: tuple[Kind, ...] = ()
     named: tuple[str, ...] = ()
     rename: dict[str, str] = Field(default_factory=dict)
@@ -110,9 +111,11 @@ def parse(source: Source, pdf: bytes) -> list[RegSection]:
 
 def body(source: Source, pdf: bytes) -> list[Line]:
     lines = read_lines(pdf)
-    start = next((i for i, line in enumerate(lines) if line.text == source.starts_at), None)
+    start = next(
+        (i for i, line in enumerate(lines) if line.text == source.first_body_heading), None
+    )
     if start is None:
-        raise ValueError(f"{source.key}: no line reads {source.starts_at!r}")
+        raise ValueError(f"{source.key}: no line reads {source.first_body_heading!r}")
     return lines[start:]
 
 
@@ -124,7 +127,7 @@ def read_lines(pdf: bytes) -> list[Line]:
         for lines, height in pages
         for shape in {_shape(line.text) for line in lines if _in_margin(line, height)}
     )
-    repeated = max(2, math.ceil(len(pages) / 2))
+    repeated = max(2, math.ceil(len(pages) * _FURNITURE_PAGE_SHARE))
     furniture = {shape for shape, count in counts.items() if count >= repeated}
     return [
         merged
@@ -306,7 +309,7 @@ class _Section:
 
 
 def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
-    ranks = {kind: rank for rank, kinds in enumerate(source.levels) for kind in kinds}
+    ranks = {kind: rank for rank, kinds in enumerate(source.heading_ranks) for kind in kinds}
     stack: list[_Node] = []
     last: dict[int, dict[Kind, str]] = {}
     sections: list[_Section] = []

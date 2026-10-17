@@ -1,12 +1,4 @@
-"""Check stored guidance rows against the source PDFs, independently of the chunker.
-
-Usage: p04.py PDF_DIR. Reads DATABASE_URL. Exits 1 on any failure.
-
-The oracle reads each PDF with PyMuPDF's sorted plain-text mode, removes running headers,
-footers, and page numbers (a line repeated in the top or bottom 12% of at least half the
-pages), and starts at the source's first body heading. The stored rows must hold exactly
-those words, and each row's first words must appear on the page its URL names.
-"""
+"""Usage: p04.py PDF_DIR. Reads DATABASE_URL. Exits 1 on any failure."""
 
 import math
 import os
@@ -23,6 +15,7 @@ import pymupdf
 from fda_copilot.corpus import guidance
 
 MARGIN = 0.12
+FURNITURE_PAGE_SHARE = 0.5
 GOLD = {
     "ICH E6(R3) 3.11.4.3": "The sponsor should develop a monitoring plan that is tailored to the "
     "identified potential safety risks",
@@ -63,11 +56,13 @@ def furniture(document: Any) -> set[str]:
     for page in document:
         height = page.rect.height
         counts.update({shape(ln.text) for ln in page_lines(page) if in_margin(ln, height)})
-    repeated = max(2, math.ceil(document.page_count / 2))
+    repeated = max(2, math.ceil(document.page_count * FURNITURE_PAGE_SHARE))
     return {text for text, count in counts.items() if count >= repeated}
 
 
-def body_words(document: Any, start: int, starts_at: str, removed: set[str]) -> Counter[str]:
+def body_words(
+    document: Any, start: int, first_body_heading: str, removed: set[str]
+) -> Counter[str]:
     words: Counter[str] = Counter()
     for number in range(start, document.page_count + 1):
         page = document[number - 1]
@@ -77,7 +72,9 @@ def body_words(document: Any, start: int, starts_at: str, removed: set[str]) -> 
             if not (in_margin(ln, page.rect.height) and shape(ln.text) in removed)
         ]
         if number == start:
-            top = min(ln.top for ln in lines if starts_at.startswith(ln.text.split()[0] + " "))
+            top = min(
+                ln.top for ln in lines if first_body_heading.startswith(ln.text.split()[0] + " ")
+            )
             lines = [ln for ln in lines if ln.top >= top - 1]
         words.update(word for ln in lines for word in ln.text.split())
     return words
@@ -124,7 +121,7 @@ def main() -> int:
                 number: page_body(document[number - 1], removed)
                 for number in range(start, document.page_count + 1)
             }
-            body = body_words(document, start, source.starts_at, removed)
+            body = body_words(document, start, source.first_body_heading, removed)
         stored: Counter[str] = Counter(word for _, text, _ in rows for word in text.split())
         dropped, invented = body - stored, stored - body
         print(

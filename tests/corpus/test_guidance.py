@@ -20,8 +20,8 @@ SOURCE = Source(
     url="https://example.gov/media/1/download",
     sha256=hashlib.sha256(FIXTURE).hexdigest(),
     why="Exercises the chunker.",
-    starts_at="I. INTRODUCTION",
-    levels=((Kind.roman,), (Kind.capital,), (Kind.digit,)),
+    first_body_heading="I. INTRODUCTION",
+    heading_ranks=((Kind.roman,), (Kind.capital,), (Kind.digit,)),
 )
 
 

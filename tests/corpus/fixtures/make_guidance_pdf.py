@@ -1,5 +1,3 @@
-"""Regenerate guidance.pdf: uv run python tests/corpus/fixtures/make_guidance_pdf.py"""
-
 from pathlib import Path
 
 import pymupdf
