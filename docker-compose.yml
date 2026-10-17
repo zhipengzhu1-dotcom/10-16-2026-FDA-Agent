@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: fda
+      POSTGRES_PASSWORD: fda
+      POSTGRES_DB: fda
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fda -d fda"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+        WORKDIR /app
+        ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+        COPY pyproject.toml uv.lock ./
+        RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+        COPY src ./src
+        RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-editable
+        CMD ["/app/.venv/bin/uvicorn", "fda_copilot.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://fda:fda@db:5432/fda
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  pgdata:
