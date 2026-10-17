@@ -7,12 +7,19 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from statistics import mean, quantiles
-from typing import Annotated
+from typing import Annotated, Any
 
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field
 
-from fda_copilot.corpus.embed import DEFAULT_MODEL, MODELS, QueryCache, VoyageEmbedder, pending
+from fda_copilot.corpus.embed import (
+    DEFAULT_MODEL,
+    MODELS,
+    MissingApiKey,
+    QueryCache,
+    VoyageEmbedder,
+    pending,
+)
 from fda_copilot.domain.models import Citation, Domain
 from fda_copilot.retrieval.citations import resolve, stored_texts
 from fda_copilot.retrieval.hybrid import HybridRetriever
@@ -110,6 +117,21 @@ def regressions(recall: Mapping[str, float], baseline: Mapping[str, float]) -> l
     ]
 
 
+def gate(
+    retriever: str, recall: Mapping[str, float], baselines: Mapping[str, Mapping[str, Any]]
+) -> list[str]:
+    stored = {name: entry[f"recall_at_{K}"] for name, entry in baselines["retrieval"].items()}
+    keyword = stored["keyword"]
+    if retriever == "keyword":
+        return regressions(recall, keyword)
+    return (regressions(recall, stored["hybrid"]) if "hybrid" in stored else []) + [
+        f"{name}: hybrid recall@{K} {recall.get(name, 0.0):.4f}"
+        f" does not beat the keyword baseline {floor:.4f}"
+        for name, floor in keyword.items()
+        if recall.get(name, 0.0) <= floor
+    ]
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=f"Score recall@{K} on the retrieval eval set.")
     parser.add_argument("--retriever", choices=sorted(RETRIEVERS), required=True)
@@ -134,7 +156,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         latencies: list[float] = []
         for q in questions:
             start = time.perf_counter()
-            hits = retriever.retrieve(q.question, K)
+            try:
+                hits = retriever.retrieve(q.question, K)
+            except MissingApiKey:
+                raise SystemExit(
+                    f"The {args.embedding_model} query cache is missing {q.id}: {q.question!r}."
+                    " Load a current embedding snapshot, or set VOYAGE_API_KEY to embed it."
+                ) from None
             latencies.append((time.perf_counter() - start) * 1000)
             retrieved[q.id] = [hit.section.citation for hit in hits]
     recall = recall_at_k(questions, resolved, retrieved)
@@ -179,13 +207,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.baselines.write_text(json.dumps(baselines, indent=2) + "\n")
         print(f"baseline written to {args.baselines}")
         return 0
-    floor = baselines["retrieval"][args.retriever][f"recall_at_{K}"]
-    failures = regressions(recall, floor)
+    failures = gate(args.retriever, recall, baselines)
     for failure in failures:
         print(f"FAIL {failure}", file=sys.stderr)
     if failures:
         return 1
-    print(f"PASS recall@{K} meets the baseline in {args.baselines}")
+    print(f"PASS recall@{K} clears every {args.retriever} gate in {args.baselines}")
     return 0
 
 
