@@ -4,10 +4,11 @@ from typing import Annotated, NewType, Self
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, NonNegativeInt, model_validator
 
-from fda_copilot.domain.finding_status import FindingStatus
+from fda_copilot.domain.finding_status import FindingEvent, FindingStatus, transition
 
 RegCitation = NewType("RegCitation", str)
 DocSectionId = NewType("DocSectionId", str)
+NonEmptyCitation = Annotated[RegCitation, Field(min_length=1)]
 
 
 class Domain(StrEnum):
@@ -34,7 +35,7 @@ class _Frozen(BaseModel):
 
 
 class RegSection(_Frozen):
-    citation: RegCitation
+    citation: NonEmptyCitation
     source: RegSource
     title: str
     text: str
@@ -61,7 +62,7 @@ class DocSection(_Frozen):
 
 
 class Citation(_Frozen):
-    citation: RegCitation
+    citation: NonEmptyCitation
     quote: Annotated[str, Field(min_length=1)]
 
 
@@ -73,3 +74,6 @@ class Finding(_Frozen):
     citations: Annotated[tuple[Citation, ...], Field(min_length=1)]
     proposed_fix: str
     status: FindingStatus = FindingStatus.proposed
+
+    def apply(self, event: FindingEvent) -> Self:
+        return self.model_copy(update={"status": transition(self.status, event)})

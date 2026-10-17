@@ -10,7 +10,7 @@ from fda_copilot.domain.models import Finding
 
 
 def advance(finding: Finding, event: FindingEvent) -> Finding:
-    moved = finding.model_copy(update={"status": transition(finding.status, event)})
+    moved = finding.apply(event)
     print(f"ALLOWED {finding.status.value} --{event}--> {moved.status.value}")
     return moved
 

@@ -1,6 +1,5 @@
 from collections.abc import Mapping
 from enum import Enum, StrEnum
-from types import MappingProxyType
 from typing import Final
 
 
@@ -22,18 +21,14 @@ class FindingEvent(StrEnum):
 class IllegalTransition(Exception):
     def __init__(self, status: FindingStatus, event: str) -> None:
         super().__init__(f"no transition from {status.value} on '{event}'")
-        self.status = status
-        self.event = event
 
 
-TRANSITIONS: Final[Mapping[tuple[FindingStatus, FindingEvent], FindingStatus]] = MappingProxyType(
-    {
-        (FindingStatus.proposed, FindingEvent.verify): FindingStatus.verified,
-        (FindingStatus.proposed, FindingEvent.discard): FindingStatus.discarded,
-        (FindingStatus.verified, FindingEvent.accept): FindingStatus.accepted,
-        (FindingStatus.verified, FindingEvent.reject): FindingStatus.rejected,
-    }
-)
+TRANSITIONS: Final[Mapping[tuple[FindingStatus, FindingEvent], FindingStatus]] = {
+    (FindingStatus.proposed, FindingEvent.verify): FindingStatus.verified,
+    (FindingStatus.proposed, FindingEvent.discard): FindingStatus.discarded,
+    (FindingStatus.verified, FindingEvent.accept): FindingStatus.accepted,
+    (FindingStatus.verified, FindingEvent.reject): FindingStatus.rejected,
+}
 
 
 def transition(status: FindingStatus, event: FindingEvent) -> FindingStatus:

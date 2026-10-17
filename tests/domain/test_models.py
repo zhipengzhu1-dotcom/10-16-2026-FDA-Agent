@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from fda_copilot.domain.finding_status import FindingStatus
+from fda_copilot.domain.finding_status import FindingEvent, FindingStatus, IllegalTransition
 from fda_copilot.domain.models import (
     Citation,
     DocSection,
@@ -43,6 +43,28 @@ def test_finding_rejects_empty_citations() -> None:
 def test_citation_rejects_empty_quote() -> None:
     with pytest.raises(ValidationError, match="quote"):
         Citation.model_validate({"citation": "21 CFR 312.32(c)(1)", "quote": ""})
+
+
+def test_citation_rejects_empty_reference() -> None:
+    with pytest.raises(
+        ValidationError, match="citation\n  String should have at least 1 character"
+    ):
+        Citation.model_validate({"citation": "", "quote": "within 15 calendar days"})
+
+
+def test_finding_apply_walks_the_state_machine() -> None:
+    proposed = Finding.model_validate(FINDING)
+
+    accepted = proposed.apply(FindingEvent.verify).apply(FindingEvent.accept)
+
+    assert accepted.status is FindingStatus.accepted
+    assert proposed.status is FindingStatus.proposed
+    assert accepted.issue == "No 15-day safety report timeline."
+
+
+def test_finding_apply_rejects_illegal_move() -> None:
+    with pytest.raises(IllegalTransition, match="no transition from proposed on 'reject'"):
+        Finding.model_validate(FINDING).apply(FindingEvent.reject)
 
 
 def test_domain_is_the_four_regulatory_areas() -> None:
