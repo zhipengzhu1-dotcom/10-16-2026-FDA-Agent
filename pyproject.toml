@@ -13,6 +13,9 @@ dependencies = [
     "voyageai",
 ]
 
+[project.scripts]
+fda-copilot = "fda_copilot.cli:main"
+
 [dependency-groups]
 dev = [
     "httpx",
