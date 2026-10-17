@@ -1,0 +1,13 @@
+{
+  "retrieval": {
+    "keyword": {
+      "recall_at_5": {
+        "overall": 0.5585,
+        "IND": 0.6449,
+        "IDE": 0.3518,
+        "GLP": 0.6359,
+        "GCP": 0.5671
+      }
+    }
+  }
+}

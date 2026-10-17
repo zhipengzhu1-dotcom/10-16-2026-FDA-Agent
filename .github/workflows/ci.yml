@@ -22,3 +22,11 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run mypy --strict src
       - run: uv run pytest
+      - run: uv run python scripts/corpus_snapshot.py load
+      - run: uv run python evals/retrieval/run.py --retriever keyword --json retrieval-keyword.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrieval-keyword
+          path: retrieval-keyword.json
+          if-no-files-found: ignore
