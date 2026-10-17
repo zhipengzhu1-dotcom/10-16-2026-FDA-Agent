@@ -46,10 +46,28 @@ def test_citation_rejects_empty_quote() -> None:
 
 
 def test_citation_rejects_empty_reference() -> None:
-    with pytest.raises(
-        ValidationError, match="citation\n  String should have at least 1 character"
-    ):
+    with pytest.raises(ValidationError, match="citation\n  String should match pattern"):
         Citation.model_validate({"citation": "", "quote": "within 15 calendar days"})
+
+
+@pytest.mark.parametrize(
+    ("citation", "quote", "field"),
+    [
+        (" ", "within 15 calendar days", "citation"),
+        ("21 CFR 312.32(c)(1)", "   ", "quote"),
+        (" ", "   ", "citation"),
+        ("\t\n", "\n", "citation"),
+    ],
+)
+def test_citation_rejects_whitespace_only(citation: str, quote: str, field: str) -> None:
+    with pytest.raises(ValidationError, match=f"{field}\n  String should match pattern"):
+        Citation(citation=citation, quote=quote)
+
+
+def test_citation_keeps_quote_whitespace_exactly() -> None:
+    citation = Citation(citation="21 CFR 312.32(c)(1)", quote="  within  15\ncalendar days ")
+
+    assert citation.quote == "  within  15\ncalendar days "
 
 
 def test_finding_apply_walks_the_state_machine() -> None:

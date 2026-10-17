@@ -8,7 +8,7 @@ from fda_copilot.domain.finding_status import FindingEvent, FindingStatus, trans
 
 RegCitation = NewType("RegCitation", str)
 DocSectionId = NewType("DocSectionId", str)
-NonEmptyCitation = Annotated[RegCitation, Field(min_length=1)]
+NonEmptyCitation = Annotated[RegCitation, Field(pattern=r"\S")]
 
 
 class Domain(StrEnum):
@@ -63,7 +63,7 @@ class DocSection(_Frozen):
 
 class Citation(_Frozen):
     citation: NonEmptyCitation
-    quote: Annotated[str, Field(min_length=1)]
+    quote: Annotated[str, Field(pattern=r"\S")]
 
 
 class Finding(_Frozen):
