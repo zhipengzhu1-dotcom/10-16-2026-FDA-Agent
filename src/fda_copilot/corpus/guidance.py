@@ -263,6 +263,13 @@ def _read_page(page: pymupdf.Page) -> _Page:
         for line in block.get("lines", []):
             spans = [s for s in line["spans"] if s["text"].strip()]
             if spans:
+                size = max(s["size"] for s in spans)
+                small = [
+                    s["text"].strip()
+                    if _MARKERS.fullmatch(s["text"].strip()) and s["size"] < size - 1
+                    else ""
+                    for s in spans
+                ]
                 x0, y0, x1, y1 = line["bbox"]
                 xs, ys = zip(
                     *(
@@ -275,14 +282,8 @@ def _read_page(page: pymupdf.Page) -> _Page:
                 bold_or_italic = spans[0]["flags"] & (
                     pymupdf.TEXT_FONT_BOLD | pymupdf.TEXT_FONT_ITALIC
                 )
-                text = " ".join("".join(s["text"] for s in line["spans"]).split())
-                size = max(s["size"] for s in spans)
-                small = [
-                    s["text"].strip()
-                    if _MARKERS.fullmatch(s["text"].strip()) and s["size"] < size - 1
-                    else ""
-                    for s in spans
-                ]
+                text = "".join(s["text"] for s in line["spans"]).strip()
+                text = " ".join(f"{small[0]} {text.removeprefix(small[0])}".split())
                 lines.append(
                     _PdfLine(
                         min(ys),

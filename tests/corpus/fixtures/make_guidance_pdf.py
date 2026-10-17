@@ -115,6 +115,21 @@ def _raised_marker(page: pymupdf.Page, y: float, text: str, font: str, marker: s
     page.insert_text((right, y - 4), marker, fontname="helv", fontsize=8)
 
 
+def build_marker_led() -> bytes:
+    document = pymupdf.open()
+    page = document.new_page(width=612, height=792)
+    page.insert_text((72, 100), "I. INTRODUCTION", fontname="hebo", fontsize=12)
+    left = "Staged approval is most common for pivotal studies"
+    right = 72 + pymupdf.get_text_length(left, fontname="helv", fontsize=12)
+    page.insert_text((right, 133), "1", fontname="helv", fontsize=8)
+    page.insert_text((right + 5, 140), "in which many subjects", fontname="helv", fontsize=12)
+    page.insert_text((72, 140), left, fontname="helv", fontsize=12)
+    page.insert_text((72, 154), "will be enrolled.", fontname="helv", fontsize=12)
+    page.insert_text((72, 680), "1", fontname="helv", fontsize=6.5)
+    page.insert_text((76, 681), "For studies of a device.", fontname="helv", fontsize=10)
+    return _bytes(document)
+
+
 OUTLINED = [
     [
         (1, 100, "hebo", "I. INTRODUCTION"),
@@ -167,3 +182,4 @@ if __name__ == "__main__":
     (fixtures / "rotated.pdf").write_bytes(build_rotated())
     (fixtures / "footnoted.pdf").write_bytes(build_footnoted())
     (fixtures / "outlined.pdf").write_bytes(build_outlined())
+    (fixtures / "marker_led.pdf").write_bytes(build_marker_led())

@@ -309,3 +309,11 @@ def test_footnotes_follow_the_section_that_cites_them_and_a_marker_in_the_top_ma
         ),
         ("FDA Test Guidance II", "II. DISCUSSION Closing text."),
     ]
+
+
+def test_a_footnote_number_set_against_its_text_stays_apart_from_the_first_word() -> None:
+    source, pdf = fixture_source("marker_led.pdf")
+
+    rows = guidance.parse(source, pdf)
+
+    assert rows[0].text.endswith("will be enrolled. 1 For studies of a device.")
