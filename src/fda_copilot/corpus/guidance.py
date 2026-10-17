@@ -270,7 +270,13 @@ def _read_page(page: pymupdf.Page) -> _Page:
                     else ""
                     for s in spans
                 ]
+                full = [s["bbox"] for s, marker in zip(spans, small, strict=True) if not marker]
                 x0, y0, x1, y1 = line["bbox"]
+                dx, dy = line["dir"]
+                if abs(dx) >= abs(dy):
+                    y0, y1 = min(b[1] for b in full), max(b[3] for b in full)
+                else:
+                    x0, x1 = min(b[0] for b in full), max(b[2] for b in full)
                 xs, ys = zip(
                     *(
                         (m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f)

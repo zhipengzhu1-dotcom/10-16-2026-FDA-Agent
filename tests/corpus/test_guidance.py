@@ -311,6 +311,17 @@ def test_footnotes_follow_the_section_that_cites_them_and_a_marker_in_the_top_ma
     ]
 
 
+def test_a_line_that_starts_with_a_raised_marker_stays_after_the_text_to_its_left() -> None:
+    source, pdf = fixture_source("marker_led.pdf")
+
+    rows = guidance.parse(source, pdf)
+
+    assert rows[0].text.startswith(
+        "I. INTRODUCTION Staged approval is most common for pivotal studies 1 in which many"
+        " subjects will be enrolled."
+    )
+
+
 def test_a_footnote_number_set_against_its_text_stays_apart_from_the_first_word() -> None:
     source, pdf = fixture_source("marker_led.pdf")
 
