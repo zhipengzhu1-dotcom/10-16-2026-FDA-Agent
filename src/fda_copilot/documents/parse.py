@@ -6,7 +6,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import Any
+from typing import Any, NamedTuple
 
 import docx
 import pymupdf
@@ -35,6 +35,16 @@ class ParsedDocument:
     text: str
     sections: tuple[DocSection, ...]
 
+    def __post_init__(self) -> None:
+        position = 0
+        for section in self.sections:
+            start, end = section.span.start, section.span.end
+            if start != position or section.text != self.text[start:end]:
+                raise ValueError(f"section {section.id} breaks the span contract")
+            position = end
+        if position != len(self.text):
+            raise ValueError("sections do not cover the whole text")
+
 
 @dataclass(frozen=True)
 class _Line:
@@ -42,20 +52,20 @@ class _Line:
     heading: str | None = None
 
 
+class _Style(NamedTuple):
+    font: str
+    size: float
+    bold: bool
+
+
 @dataclass(frozen=True)
 class _PdfLine:
     text: str
     page: int
-    style: tuple[str, float, bool] | None
-
-    @property
-    def size(self) -> float:
-        return self.style[1] if self.style else 0.0
+    style: _Style | None
 
 
-_SECTION_NUMBER = re.compile(r"^\s*\d+(?:\.\d+)*\.?(?:\s|$)")
-_BARE_NUMBER = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s*$")
-_DOTTED_NUMBER = re.compile(r"^\s*\d+\.(?:\d+\.?)*(?:\s|$)")
+_SECTION_NUMBER = re.compile(r"\s*(\d+(?:\.\d+)*\.?)(?:\s+|$)")
 _TOC_LEADER = re.compile(r"\.{5,}|…{2,}")
 _MAX_HEADING_CHARS = 200
 
@@ -72,9 +82,9 @@ def parse_document(filename: str, data: bytes) -> ParsedDocument:
 
 
 def _assemble(lines: Sequence[_Line], doc_key: str) -> ParsedDocument:
-    text = "".join(f"{line.text}\n" for line in lines)
-    if not text:
+    if not lines:
         return ParsedDocument(text="", sections=())
+    text = "".join(f"{line.text}\n" for line in lines)
     starts: list[tuple[int, str]] = []
     offset = 0
     for line in lines:
@@ -104,18 +114,17 @@ def _docx_lines(filename: str, data: bytes) -> list[_Line]:
     lines: list[_Line] = []
     for block in document.iter_inner_content():
         if isinstance(block, Paragraph):
-            lines.append(_Line(block.text, _docx_heading(block)))
+            text = block.text
+            heading = _squash(text) if _is_heading_style(block) else ""
+            lines.append(_Line(text, heading or None))
         elif isinstance(block, Table):
             lines.extend(_Line("\t".join(cell.text for cell in row.cells)) for row in block.rows)
     return lines
 
 
-def _docx_heading(paragraph: Paragraph) -> str | None:
-    style = paragraph.style.name if paragraph.style is not None else None
-    heading = _squash(paragraph.text)
-    if style and heading and (style == "Title" or style.startswith("Heading")):
-        return heading
-    return None
+def _is_heading_style(paragraph: Paragraph) -> bool:
+    name = (paragraph.style.name if paragraph.style is not None else None) or ""
+    return name == "Title" or name.startswith("Heading")
 
 
 def _pdf_lines(filename: str, data: bytes) -> list[_Line]:
@@ -150,15 +159,16 @@ def _pdf_line(line: dict[str, Any], page: int) -> _PdfLine:
             span["flags"] & pymupdf.TEXT_FONT_BOLD or "bold" in span["font"].lower()
             for span in inked
         )
-        style = (str(inked[0]["font"]), round(max(float(s["size"]) for s in inked), 1), bold)
+        style = _Style(str(inked[0]["font"]), round(max(float(s["size"]) for s in inked), 1), bold)
     return _PdfLine("".join(span["text"] for span in spans), page, style)
 
 
 def _outline_headings(toc: Sequence[Sequence[Any]], lines: Sequence[_PdfLine]) -> dict[int, str]:
     headings: dict[int, str] = {}
     cursor = 0
-    for _level, title, page, *_ in toc:
-        wanted = _title_key(str(title))
+    for _level, raw_title, page, *_ in toc:
+        title = _squash(str(raw_title))
+        wanted = _title_key(title)
         if not wanted:
             continue
         for index in range(cursor, len(lines)):
@@ -169,23 +179,28 @@ def _outline_headings(toc: Sequence[Sequence[Any]], lines: Sequence[_PdfLine]) -
                 break
             got = _title_key(line.text)
             if got == wanted or (len(got) >= 4 and wanted.startswith(got)):
-                if index > cursor and _BARE_NUMBER.match(lines[index - 1].text):
-                    index -= 1
-                headings[index] = _squash(str(title))
-                cursor = index + 1
+                start = index - 1 if index > cursor and _is_bare_number(lines[index - 1]) else index
+                headings[start] = title
+                cursor = start + 1
                 break
     return headings
 
 
+def _is_bare_number(line: _PdfLine) -> bool:
+    number = _SECTION_NUMBER.match(line.text)
+    return number is not None and number.end() == len(line.text)
+
+
 def _title_key(text: str) -> str:
-    return _squash(_SECTION_NUMBER.sub("", text)).casefold()
+    number = _SECTION_NUMBER.match(text)
+    return _squash(text[number.end() :] if number else text).casefold()
 
 
 def _font_headings(lines: Sequence[_PdfLine]) -> dict[int, str]:
     sizes: Counter[float] = Counter()
     for line in lines:
         if line.style:
-            sizes[line.size] += len(line.text.strip())
+            sizes[line.style.size] += len(line.text.strip())
     if not sizes:
         return {}
     body_size = sizes.most_common(1)[0][0]
@@ -193,8 +208,9 @@ def _font_headings(lines: Sequence[_PdfLine]) -> dict[int, str]:
     def starts_heading(line: _PdfLine) -> bool:
         if line.style is None:
             return False
-        bold_number = line.style[2] and _DOTTED_NUMBER.match(line.text) is not None
-        return line.size >= body_size + 0.5 or bold_number
+        number = _SECTION_NUMBER.match(line.text)
+        dotted_number = number is not None and "." in number.group(1)
+        return line.style.size >= body_size + 0.5 or (line.style.bold and dotted_number)
 
     headings: dict[int, str] = {}
     index = 0

@@ -80,6 +80,12 @@ def test_spans_slice_back_and_tile_the_text(document: ParsedDocument) -> None:
         assert section.text
 
 
+def test_parsed_document_refuses_spans_that_leave_a_gap() -> None:
+    first = parse(DOCX).sections[0]
+    with pytest.raises(ValueError, match="cover the whole text"):
+        ParsedDocument(text=first.text + "orphan\n", sections=(first,))
+
+
 def test_section_ids_are_unique() -> None:
     sections = parse(PDF).sections
     assert len({section.id for section in sections}) == len(sections)
