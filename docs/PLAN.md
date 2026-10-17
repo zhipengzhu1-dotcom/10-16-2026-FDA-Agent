@@ -8,7 +8,7 @@ PR order is P01 through P16. P07 and P08 can be built while P03 to P06 are in pr
 
 One box is one unit of work. Every box names the evidence that checks it. A nested box is a sub-step of the box above it. Check a box only when its evidence exists, a file, a log line, a test run, or a SHA. The body is a how-to. The appendices explain and record.
 
-The program runs `pstack/skills/poteto-mode/playbooks/autopilot-stack.md`, read from the installed pstack plugin. The work is sequenced and the operator reviews before landing, so owners stop at stack-ready. The operator lands every PR.
+The program runs `pstack/skills/poteto-mode/playbooks/autopilot-full.md`, read from the installed pstack plugin. The operator granted merge authority on 2026-10-16. Each owner squash-merges its own PR into `main` after an independent verifier passes the exact head SHA and CI is green. P12, P13, P14, and P15 also wait for the operator's review in chat before merge.
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -22,7 +22,7 @@ The operator scaled live verification down on 2026-10-16 because `control-ui` is
 - [ ] Read these at program start. Re-read them at every tick.
   - [ ] `git show origin/main:docs/PLAN.md`
   - [ ] `git show origin/main:docs/BRIEF.md`
-  - [ ] The installed `poteto-mode/playbooks/autopilot-stack.md` and `poteto-mode/playbooks/autopilot-full.md`.
+  - [ ] The installed `poteto-mode/playbooks/autopilot-full.md` and `poteto-mode/playbooks/shipping.md`.
   - [ ] The installed `poteto-mode/playbooks/opening-a-pr.md`.
   - [ ] The installed `principle-prove-it-works/SKILL.md` and `principle-sequence-verifiable-units/SKILL.md`.
 - [ ] On the operator's go, arm the audit tick as `/loop 1h` with the tick prompt below. Never leave the cadence to memory.
@@ -32,7 +32,7 @@ The operator scaled live verification down on 2026-10-16 because `control-ui` is
 ### Spawn owners
 
 - [ ] Spawn one owner per PR as a `poteto-agent` subagent with `isolation` set to `worktree`. Give it the PR's GitHub issue body as its brief.
-- [ ] Follow this dependency graph. Base dependent work on the parent branch, because the execution playbook stacks.
+- [ ] Follow this dependency graph. Start dependent work only after its parent merges, and branch it from current `main`.
   - [ ] P01 is first and branches from `main`.
   - [ ] P02 after P01.
   - [ ] P03 after P02. P04 after P03. P05 after P04. P06 after P05.
@@ -47,7 +47,7 @@ The operator scaled live verification down on 2026-10-16 because `control-ui` is
 ### PR mechanics, for every PR
 
 - [ ] Use `gh` for every PR operation. Never require `gt`.
-- [ ] Open the PR ready, never draft, per **Opening a PR**, with `gh pr create --base <parent-branch>`. A stack child targets its parent branch.
+- [ ] Open the PR ready, never draft, per **Opening a PR**, with `gh pr create --base main`.
 - [ ] Run `uv run ruff check`, `uv run mypy src`, and `uv run pytest` once before the PR-facing push. Push with hooks on.
 - [ ] Run `/simplify` before each commit, in place of `/deslop`, which is not installed. Run `/no-comments` before review.
 - [ ] Triage every review comment on its merits. Fix it, or dismiss it with a concrete reason.
@@ -56,10 +56,12 @@ The operator scaled live verification down on 2026-10-16 because `control-ui` is
 
 ### Verdict and merge, for every PR
 
-- [ ] A fresh verifier subagent on the `swarm workers` model checks out the code-ready head SHA. It runs the PR's unit, live, and perf boxes and returns each command's output. A rebase or a minor fix gets a single verifier run at the new head.
+- [ ] A fresh verifier subagent on the `swarm workers` model checks out the code-ready head SHA. It never wrote code for this PR. It runs the PR's unit, live, and perf boxes, posts `PASS` or `FAIL` with each command's output as a PR comment, and names the SHA it checked. A rebase or a minor fix gets a single verifier run at the new head.
 - [ ] Run `/code-review` at the head SHA. Send its confirmed findings back to the owner.
 - [ ] Clean only when every unit, live, and perf box passes with its saved evidence. A new head gets a fresh verdict, unless its patch-id is unchanged.
-- [ ] Append each clean PR to the stack in dependency order with `gh pr edit <pr> --base <parent-branch>`. The operator lands the stack bottom-up.
+- [ ] The owner merges only when the verifier's `PASS` names the current head SHA and the required `ci` check is green. Merge with `gh pr merge <pr> --squash --delete-branch`.
+- [ ] Read the PR back with `gh pr view <pr> --json state,mergedAt,baseRefName`. The merge counts only when `state` is `MERGED` and the base is `main`.
+- [ ] Branch protection on `main` requires the `ci` check and an up-to-date branch. Never bypass it.
 
 ### Boot recipe, for every live check
 
@@ -85,7 +87,7 @@ Each live check runs on the operator's machine at the PR head.
 **Build.**
 
 - [ ] Add a FastAPI app with `GET /health` that returns `{"status": "ok", "db": "ok"}` after a `SELECT 1` against Postgres.
-- [ ] Add a CI workflow that runs lint, typecheck, and tests on every pull request.
+- [ ] Add a CI workflow with one job named `ci` that runs lint, typecheck, and tests on every pull request. Branch protection on `main` requires a check with exactly that name.
 
 **You see.**
 
@@ -114,7 +116,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P01 to the stack and the operator lands it.
+- [ ] The owner squash-merges P01 and reads back `state` as `MERGED` with base `main`.
 
 ## Define the core regulatory types and the finding state machine (P02)
 
@@ -160,7 +162,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P02 to the stack and the operator lands it.
+- [ ] The owner squash-merges P02 and reads back `state` as `MERGED` with base `main`.
 
 ## Ingest 21 CFR Parts 50, 56, 58, 312, and 812 at the paragraph level (P03)
 
@@ -209,7 +211,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P03 to the stack and the operator lands it.
+- [ ] The owner squash-merges P03 and reads back `state` as `MERGED` with base `main`.
 
 ## Ingest ICH guidelines and the core FDA guidance documents (P04)
 
@@ -253,7 +255,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P04 to the stack and the operator lands it.
+- [ ] The owner squash-merges P04 and reads back `state` as `MERGED` with base `main`.
 
 ## Build the retrieval eval set and a keyword-search baseline (P05)
 
@@ -299,7 +301,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P05 to the stack and the operator lands it.
+- [ ] The owner squash-merges P05 and reads back `state` as `MERGED` with base `main`.
 
 ## Add hybrid retrieval and pick the embedding model by eval (P06)
 
@@ -344,7 +346,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P06 to the stack and the operator lands it.
+- [ ] The owner squash-merges P06 and reads back `state` as `MERGED` with base `main`.
 
 ## Build the planted-violation eval set and its scorer (P07)
 
@@ -390,7 +392,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P07 to the stack and the operator lands it.
+- [ ] The owner squash-merges P07 and reads back `state` as `MERGED` with base `main`.
 
 ## Parse uploaded documents into sections with character spans (P08)
 
@@ -434,7 +436,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P08 to the stack and the operator lands it.
+- [ ] The owner squash-merges P08 and reads back `state` as `MERGED` with base `main`.
 
 ## Review informed consent end to end with one specialist and the verifier (P09)
 
@@ -481,7 +483,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P09 to the stack and the operator lands it.
+- [ ] The owner squash-merges P09 and reads back `state` as `MERGED` with base `main`.
 
 ## Route sections to four parallel specialists (P10)
 
@@ -527,7 +529,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P10 to the stack and the operator lands it.
+- [ ] The owner squash-merges P10 and reads back `state` as `MERGED` with base `main`.
 
 ## Expose reviews and accept or reject decisions through the API (P11)
 
@@ -575,7 +577,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P11 to the stack and the operator lands it.
+- [ ] The owner squash-merges P11 and reads back `state` as `MERGED` with base `main`.
 
 ## Build the document review UI with inline findings (P12)
 
@@ -625,7 +627,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P12 to the stack and the operator lands it.
+- [ ] The owner squash-merges P12 and reads back `state` as `MERGED` with base `main`.
 
 ## Add the cited chat sidebar (P13)
 
@@ -674,7 +676,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P13 to the stack and the operator lands it.
+- [ ] The owner squash-merges P13 and reads back `state` as `MERGED` with base `main`.
 
 ## Generate an IND submission checklist as a workflow job (P14)
 
@@ -723,7 +725,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P14 to the stack and the operator lands it.
+- [ ] The owner squash-merges P14 and reads back `state` as `MERGED` with base `main`.
 
 ## Prototype the opt-in screen watcher as a stretch goal (P15)
 
@@ -772,7 +774,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P15 to the stack and the operator lands it.
+- [ ] The owner squash-merges P15 and reads back `state` as `MERGED` with base `main`.
 
 ## Package the demo, the README, and the walkthrough video (P16)
 
@@ -817,7 +819,7 @@ Each live check runs on the operator's machine at the PR head.
 - [ ] Verifier's clean verdict at the exact head SHA.
 - [ ] Review comments triaged.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
-- [ ] The root appends P16 to the stack and the operator lands it.
+- [ ] The owner squash-merges P16 and reads back `state` as `MERGED` with base `main`.
 
 ## Close the program
 
@@ -864,6 +866,6 @@ Each live check runs on the operator's machine at the PR head.
 3. Every finding and every chat answer cites a stored `RegSection`. Code that shows the user an uncited or unverified claim is a defect.
 4. Never tune prompts on the held-out protocols in `evals/review/gold.jsonl`.
 5. Tests call code the way users do and assert literal expected values.
-6. Never push to `main`, force-push a shared branch, merge, or retarget a PR. The root owns the stack and the operator lands it.
+6. Never push to `main` or force-push a shared branch. Squash-merge your own PR with `gh pr merge --squash --delete-branch` only after an independent verifier posts `PASS` for its exact head SHA and the `ci` check is green. A review-gated PR also needs the operator's approval in chat.
 7. Write only the paths your issue's SCOPE names. Report anything outside scope as a follow-up.
 8. Keep a comment only for a non-obvious reason the code cannot show.
