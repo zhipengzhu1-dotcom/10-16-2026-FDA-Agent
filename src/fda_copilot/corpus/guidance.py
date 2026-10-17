@@ -22,6 +22,7 @@ SOURCES = files("fda_copilot.corpus") / "guidance_sources.yaml"
 MAX_FDA_GUIDANCE = 8
 _MARGIN = 0.12
 _FURNITURE_PAGE_SHARE = 0.5
+_BROKEN_WORD = re.compile(r"\w-$")
 _MARKERS = re.compile(r"\d{1,3}(?:, ?\d{1,3})*,?")
 
 
@@ -209,7 +210,7 @@ def _split_footnotes(
             footnotes.append((line.lead, [line.text]))
         else:
             footnotes[-1][1].append(line.text)
-    return ordered[:first], [(marker, " ".join(texts)) for marker, texts in footnotes]
+    return ordered[:first], [(marker, _join(texts)) for marker, texts in footnotes]
 
 
 def _attach_notes(
@@ -280,13 +281,13 @@ def _read_page(page: pymupdf.Page) -> _Page:
 def _page_rows(
     page: int, lines: list[_PdfLine], tables: list[list[_Box]]
 ) -> list[tuple[Line, tuple[str, ...]]]:
-    groups: list[tuple[float, float, list[_PdfLine]]] = []
+    groups: list[tuple[float, float, str, list[_PdfLine]]] = []
     for cells in tables:
         for cell in cells:
             inside = sorted(ln for ln in lines if _inside(ln, cell))
             lines = [ln for ln in lines if ln not in inside]
             if inside:
-                groups.append((cell[1], cell[0], inside))
+                groups.append((cell[1], cell[0], _join([ln.text for ln in inside]), inside))
     rows: list[list[_PdfLine]] = []
     for line in sorted(lines):
         if rows and line.top - rows[-1][0].top <= 2:
@@ -295,14 +296,18 @@ def _page_rows(
             rows.append([line])
     for row in rows:
         row.sort(key=lambda line: line.left)
-        groups.append((row[0].top, row[0].left, row))
+        groups.append((row[0].top, row[0].left, " ".join(ln.text for ln in row), row))
     return [
-        (
-            Line(page, " ".join(ln.text for ln in group), group[0].styled),
-            tuple(marker for ln in group for marker in ln.markers),
-        )
-        for _, _, group in sorted(groups, key=lambda item: item[:2])
+        (Line(page, text, group[0].styled), tuple(m for ln in group for m in ln.markers))
+        for _, _, text, group in sorted(groups, key=lambda item: item[:2])
     ]
+
+
+def _join(lines: Sequence[str]) -> str:
+    text = ""
+    for line in lines:
+        text += line if _BROKEN_WORD.search(text) or not text else f" {line}"
+    return text
 
 
 def _inside(line: _PdfLine, cell: _Box) -> bool:
@@ -478,7 +483,7 @@ def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
             citation=RegCitation(s.citation),
             source=source.source,
             title=s.title,
-            text=" ".join([*s.lines, *s.notes]),
+            text=" ".join([_join(s.lines), *s.notes]),
             effective_date=source.issued,
             url=HttpUrl(f"{source.url}#page={s.page}"),
         )

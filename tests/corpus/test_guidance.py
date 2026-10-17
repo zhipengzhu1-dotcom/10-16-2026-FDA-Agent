@@ -215,6 +215,23 @@ def test_an_integer_heading_that_skips_a_number_stays_body_text() -> None:
     ]
 
 
+def test_a_line_ending_in_a_hyphen_joins_the_next_line_and_keeps_the_hyphen() -> None:
+    lines = [
+        Line(1, "I. INTRODUCTION", True),
+        Line(1, "Studies in non-", False),
+        Line(1, "rodent species use trial-", False),
+        Line(2, "related data. A spaced dash -", False),
+        Line(2, "stays spaced.", False),
+    ]
+
+    rows = guidance.chunk(SOURCE, lines)
+
+    assert [row.text for row in rows] == [
+        "I. INTRODUCTION Studies in non-rodent species use trial-related data."
+        " A spaced dash - stays spaced."
+    ]
+
+
 def fixture_source(name: str, **fields: object) -> tuple[Source, bytes]:
     pdf = (Path(__file__).parent / "fixtures" / name).read_bytes()
     update = {"key": name.removesuffix(".pdf"), "sha256": hashlib.sha256(pdf).hexdigest()}
