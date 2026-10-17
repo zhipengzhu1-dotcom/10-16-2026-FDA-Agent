@@ -44,6 +44,10 @@ class StaleSnapshot(Exception):
     pass
 
 
+class CorpusNotLoaded(Exception):
+    pass
+
+
 def snapshot_path(model: str) -> Path:
     return SNAPSHOTS / f"embeddings-{model}.json.gz"
 
@@ -87,6 +91,17 @@ def load(conn: psycopg.Connection, model: str, snapshot: Path) -> Snapshot:
     with conn.transaction():
         for migration in sorted(MIGRATIONS.glob("*.sql")):
             conn.execute(migration.read_text())
+        orphans = conn.execute(
+            "SELECT c FROM unnest(%s::text[], %s::date[]) AS rows(c, d)"
+            " WHERE (c, d) NOT IN (SELECT citation, effective_date FROM reg_sections)"
+            " ORDER BY c",
+            ([s.citation for s in result.sections], [s.effective_date for s in result.sections]),
+        ).fetchall()
+        if orphans:
+            raise CorpusNotLoaded(
+                f"{snapshot.name}: {len(orphans)} vectors have no reg_sections row,"
+                f" first {orphans[0][0]}. Run `scripts/corpus_snapshot.py load` first."
+            )
         conn.execute("DELETE FROM section_embeddings WHERE model = %s", (model,))
         conn.execute("DELETE FROM query_embeddings WHERE model = %s", (model,))
         conn.execute(

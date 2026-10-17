@@ -52,8 +52,12 @@ def load(conn: psycopg.Connection, snapshot: Path) -> int:
     with conn.transaction():
         for migration in sorted(MIGRATIONS.glob("*.sql")):
             conn.execute(migration.read_text())
-        conn.execute("DELETE FROM reg_sections")
         store.upsert(conn, sections)
+        conn.execute(
+            "DELETE FROM reg_sections WHERE (citation, effective_date) NOT IN"
+            " (SELECT * FROM unnest(%s::text[], %s::date[]))",
+            ([s.citation for s in sections], [s.effective_date for s in sections]),
+        )
     return len(sections)
 
 
