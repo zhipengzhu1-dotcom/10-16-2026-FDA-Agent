@@ -44,6 +44,7 @@ def load(conn: psycopg.Connection, snapshot: Path) -> int:
     with conn.transaction():
         for migration in sorted(MIGRATIONS.glob("*.sql")):
             conn.execute(migration.read_text())
+        conn.execute("DELETE FROM reg_sections")
         store.upsert(conn, sections)
     return len(sections)
 
