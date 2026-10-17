@@ -6,7 +6,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from fda_copilot.corpus import guidance
+from fda_copilot.corpus import ecfr, guidance
 from fda_copilot.corpus.guidance import Kind, Line, Source
 from fda_copilot.domain.models import RegSource
 
@@ -139,7 +139,7 @@ def test_more_than_eight_fda_documents_are_rejected(tmp_path: Path) -> None:
 def test_fetch_refuses_a_pdf_whose_hash_changed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(guidance, "_get", lambda url: b"%PDF-1.7 tampered")
+    monkeypatch.setattr(ecfr, "http_get", lambda url: b"%PDF-1.7 tampered")
 
     with pytest.raises(ValueError, match=f"but the pin is {SOURCE.sha256}"):
         guidance.fetch(SOURCE, tmp_path)
@@ -154,7 +154,7 @@ def test_fetch_reuses_a_verified_copy_without_downloading(
     def offline(url: str) -> bytes:
         raise AssertionError(f"downloaded {url}")
 
-    monkeypatch.setattr(guidance, "_get", offline)
+    monkeypatch.setattr(ecfr, "http_get", offline)
 
     assert guidance.fetch(SOURCE, tmp_path) == FIXTURE
 
@@ -163,7 +163,7 @@ def test_fetch_replaces_a_cached_copy_that_no_longer_matches_the_pin(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / "fixture.pdf").write_bytes(b"%PDF-1.7 stale")
-    monkeypatch.setattr(guidance, "_get", lambda url: FIXTURE)
+    monkeypatch.setattr(ecfr, "http_get", lambda url: FIXTURE)
 
     assert guidance.fetch(SOURCE, tmp_path) == FIXTURE
     assert (tmp_path / "fixture.pdf").read_bytes() == FIXTURE

@@ -13,7 +13,7 @@ import pymupdf
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
-from fda_copilot.corpus.ecfr import _get
+from fda_copilot.corpus import ecfr
 from fda_copilot.domain.models import RegCitation, RegSection, RegSource
 
 SOURCES = Path(__file__).parents[3] / "corpus" / "guidance_sources.yaml"
@@ -75,7 +75,7 @@ def fetch(source: Source, directory: Path) -> bytes:
     path = directory / f"{source.key}.pdf"
     if path.exists() and _sha256(cached := path.read_bytes()) == source.sha256:
         return cached
-    pdf = _get(str(source.url))
+    pdf = ecfr.http_get(str(source.url))
     if (digest := _sha256(pdf)) != source.sha256:
         raise ValueError(
             f"{source.key}: {source.url} served sha256 {digest}, but the pin is {source.sha256}"
