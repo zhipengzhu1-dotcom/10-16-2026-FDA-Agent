@@ -8,6 +8,7 @@ dependencies = [
     "fastapi",
     "langgraph",
     "psycopg[binary]",
+    "pydantic>=2.14.1",
     "uvicorn",
     "voyageai",
 ]
