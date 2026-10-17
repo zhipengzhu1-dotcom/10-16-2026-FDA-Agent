@@ -10,9 +10,9 @@ import yaml
 from pydantic import ValidationError
 
 from fda_copilot import cli
-from fda_copilot.corpus import ecfr, guidance
+from fda_copilot.corpus import ecfr, guidance, store
 from fda_copilot.corpus.guidance import Kind, Line, Source
-from fda_copilot.domain.models import RegSource
+from fda_copilot.domain.models import RegSection, RegSource
 
 MIGRATION = Path(__file__).parents[2] / "migrations" / "001_reg_sections.sql"
 FIXTURE = (Path(__file__).parent / "fixtures" / "guidance.pdf").read_bytes()
@@ -197,6 +197,40 @@ def test_a_wrong_pin_on_the_last_source_writes_nothing(
         conn.execute("DELETE FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'")
 
     assert (written, after_a_good_run) == ((0,), (7,))
+
+
+def test_a_failed_write_for_a_later_source_rolls_back_the_earlier_ones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    second = SOURCE.model_copy(update={"key": "second", "citation": "FDA Second Guidance"})
+    monkeypatch.setattr(ecfr, "http_get", lambda url: FIXTURE)
+    writes: list[str] = []
+    upsert = store.upsert
+
+    def fail_on_the_second_write(conn: psycopg.Connection, sections: list[RegSection]) -> int:
+        writes.append(sections[0].citation)
+        if len(writes) == 2:
+            raise psycopg.OperationalError("disk full")
+        return upsert(conn, sections)
+
+    ours = "citation LIKE 'FDA Test Guidance%' OR citation LIKE 'FDA Second Guidance%'"
+    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
+        conn.execute(MIGRATION.read_text())
+        conn.execute(f"DELETE FROM reg_sections WHERE {ours}")
+        monkeypatch.setattr(guidance, "load_sources", lambda: [SOURCE])
+        cli.main(["ingest", "guidance", "--pdf-dir", str(tmp_path)])
+        conn.execute(f"UPDATE reg_sections SET text = 'stale' WHERE {ours}")
+
+        monkeypatch.setattr(guidance, "load_sources", lambda: [SOURCE, second])
+        monkeypatch.setattr(store, "upsert", fail_on_the_second_write)
+        with pytest.raises(psycopg.OperationalError, match="disk full"):
+            cli.main(["ingest", "guidance", "--pdf-dir", str(tmp_path)])
+        rows = conn.execute(
+            f"SELECT text, count(*) FROM reg_sections WHERE {ours} GROUP BY text"
+        ).fetchall()
+        conn.execute(f"DELETE FROM reg_sections WHERE {ours}")
+
+    assert (writes, rows) == (["FDA Test Guidance I", "FDA Second Guidance I"], [("stale", 7)])
 
 
 def _blank_pdf() -> bytes:
