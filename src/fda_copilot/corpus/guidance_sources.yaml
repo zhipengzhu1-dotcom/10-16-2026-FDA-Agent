@@ -1,0 +1,112 @@
+# FDA covers print only a month, so FDA `issued` dates use the first day of that month.
+
+- key: ich-e6r3
+  citation: ICH E6(R3)
+  source: ich
+  title: Guideline for Good Clinical Practice E6(R3)
+  issued: 2025-01-06
+  url: https://database.ich.org/sites/default/files/ICH_E6%28R3%29_Step4_FinalGuideline_2025_0106.pdf
+  sha256: e6ce19e36ce7d2e294f89ee89492b9e035178c3cca48984392bbd92eec9b002c
+  why: The GCP standard itself. Annex 1 numbers the IRB, investigator, sponsor, and data governance duties a protocol review cites.
+  first_body_heading: I. INTRODUCTION
+  heading_ranks: [[roman, named], [digit, appendix], [decimal]]
+  unstyled: [decimal]
+  named: [APPENDICES, GLOSSARY]
+  rename: {I: Introduction, II: Principle, III: "", APPENDICES: "", GLOSSARY: Glossary}
+
+- key: ich-m3r2
+  citation: ICH M3(R2)
+  source: ich
+  title: Guidance on Nonclinical Safety Studies for the Conduct of Human Clinical Trials and Marketing Authorization for Pharmaceuticals M3(R2)
+  issued: 2009-06-11
+  url: https://database.ich.org/sites/default/files/M3_R2__Guideline.pdf
+  sha256: da8bc18c11d224d23b2b3c391a32e5aa87fd49fbdc6bf515c9787bb4c41f8552
+  why: Sets which nonclinical (GLP) studies must precede each clinical phase, the check behind an IND's pharmacology and toxicology section.
+  first_body_heading: 1. INTRODUCTION
+  heading_ranks: [[digit], [decimal]]
+
+- key: fda-sponsor-safety-reporting
+  citation: FDA Sponsor Safety Reporting Guidance (2025)
+  source: fda_guidance
+  title: Sponsor Responsibilities — Safety Reporting Requirements and Safety Assessment for IND and Bioavailability/Bioequivalence Studies
+  issued: 2025-12-01
+  url: https://www.fda.gov/media/150356/download
+  sha256: 7124849af0417893a1c5d93fa6ccf2c4b4c67d5945e09060ae3977f6e0646bac
+  why: The current reading of 21 CFR 312.32 IND safety reports, which replaced the 2012 guidance in December 2025.
+  first_body_heading: I. INTRODUCTION
+
+- key: fda-investigator-safety-reporting
+  citation: FDA Investigator Safety Reporting Guidance (2025)
+  source: fda_guidance
+  title: Investigator Responsibilities — Safety Reporting for Investigational Drugs and Devices
+  issued: 2025-12-01
+  url: https://www.fda.gov/media/152530/download
+  sha256: c597c1d15d048c48d94be46710658eebdff9c8017f82ec3f04ebd54ad16e577c
+  why: Investigator reporting to sponsors and IRBs under 312.64 and 812.150, one document for both IND and IDE studies.
+  first_body_heading: I. INTRODUCTION
+
+- key: fda-informed-consent
+  citation: FDA Informed Consent Guidance (2023)
+  source: fda_guidance
+  title: Informed Consent — Guidance for IRBs, Clinical Investigators, and Sponsors
+  issued: 2023-08-01
+  url: https://www.fda.gov/media/88915/download
+  sha256: 96b26b2edb06e20ee2872ca59f4ec7c04cde8a8b1adf98bc150764e3d52f906a
+  why: Walks through each 21 CFR 50.25 consent element, the most frequent finding in a consent form review.
+  first_body_heading: I. INTRODUCTION
+
+- key: fda-investigator-responsibilities
+  citation: FDA Investigator Responsibilities Guidance (2009)
+  source: fda_guidance
+  title: Investigator Responsibilities — Protecting the Rights, Safety, and Welfare of Study Subjects
+  issued: 2009-10-01
+  url: https://www.fda.gov/media/77765/download
+  sha256: 140b612e6fe3e830256fc9c47794cdf5708b28f2df5d7abe146e14dfd0efadfc
+  why: Investigator supervision, delegation, and Form FDA 1572 commitments under 312.60, the core of sponsor-investigator oversight.
+  first_body_heading: I. INTRODUCTION
+
+- key: fda-irb-continuing-review
+  citation: FDA IRB Continuing Review Guidance (2012)
+  source: fda_guidance
+  title: IRB Continuing Review after Clinical Investigation Approval
+  issued: 2012-02-01
+  url: https://www.fda.gov/media/83121/download
+  sha256: 73c8623fd3567738585994e2e182d08661854be1df11af048b9bd0b959d95cda
+  why: Criteria, frequency, and lapse rules for IRB review under 21 CFR 56.108 and 56.109.
+  first_body_heading: I. INTRODUCTION
+
+- key: fda-ide-decisions
+  citation: FDA IDE Decisions Guidance (2014)
+  source: fda_guidance
+  title: FDA Decisions for Investigational Device Exemption Clinical Investigations
+  issued: 2014-08-19
+  url: https://www.fda.gov/media/81792/download
+  sha256: fd06ac8d19207bff0667b6ef46001a859f5a5ad6182c0f94f31c37d107fc4720
+  why: How FDA approves, conditionally approves, or disapproves an IDE under 21 CFR 812.30, the decision an IDE review anticipates.
+  first_body_heading: 1. Introduction and Scope
+  heading_ranks: [[digit], [decimal]]
+
+- key: fda-sr-nsr-device-studies
+  citation: FDA SR and NSR Device Studies Guidance (2006)
+  source: fda_guidance
+  title: Significant Risk and Nonsignificant Risk Medical Device Studies
+  issued: 2006-01-01
+  url: https://www.fda.gov/media/75459/download
+  sha256: 0dbb29754c94da548c73dc5b7c8eef715a5020c63081dbf1a385d42af3991ce1
+  why: The significant-risk determination under 21 CFR 812.2(b) and 812.3(m) decides whether a device study needs an IDE at all.
+  first_body_heading: I. INTRODUCTION
+  heading_ranks: [[roman], [capital], [digit]]
+
+- key: fda-glp-questions-answers
+  citation: FDA GLP Q&A (1981)
+  source: fda_guidance
+  title: Good Laboratory Practices Questions and Answers
+  issued: 1981-06-01
+  url: https://www.fda.gov/media/75866/download
+  sha256: 055beec4ed41889145dff8fa28269d6e7e1b99ae7078ad2f4d8bda60e6b04589
+  why: FDA's section-by-section answers on 21 CFR Part 58, the only FDA GLP guidance with extractable text.
+  first_body_heading: GOOD LABORATORY PRACTICE
+  heading_ranks: [[named, subpart, section], [question]]
+  unstyled: [subpart, section, question]
+  named: [GOOD LABORATORY PRACTICE, CONFORMING, GENERAL]
+  rename: {GOOD LABORATORY PRACTICE: Introduction, CONFORMING: Conforming Amendments, GENERAL: General}

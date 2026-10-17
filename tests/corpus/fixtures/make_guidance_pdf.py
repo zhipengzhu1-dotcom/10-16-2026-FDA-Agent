@@ -1,0 +1,185 @@
+from pathlib import Path
+
+import pymupdf
+
+PAGES = [
+    [
+        (40, "hebo", "Contains Nonbinding Recommendations"),
+        (90, "hebo", "Guidance for Industry"),
+        (120, "helv", "I. INTRODUCTION .................................. 1"),
+        (160, "hebo", "I. INTRODUCTION"),
+        (180, "helv", "This guidance explains how sponsors report safety findings."),
+        (210, "hebo", "II. BACKGROUND"),
+        (230, "helv", "FDA published the final rule in 2010."),
+        (260, "hebo", "A. Scope"),
+        (280, "helv", "The rule covers every IND."),
+        (300, "helv", "1. A numbered list item in plain type is not a heading."),
+        (330, "heit", "1. Serious Events"),
+        (350, "helv", "Report each serious and unexpected event"),
+        (750, "helv", "1"),
+    ],
+    [
+        (40, "hebo", "Contains Nonbinding Recommendations"),
+        (90, "helv", "within 15 calendar days."),
+        (120, "heit", "2. Fatal Events"),
+        (140, "helv", "Report fatal events within 7 calendar days."),
+        (170, "hebo", "B. Exemptions"),
+        (190, "helv", "Bioequivalence studies follow 21 CFR 320.31."),
+        (220, "hebo", "III. DISCUSSION"),
+        (240, "hebo", "C. Out of Sequence"),
+        (260, "helv", "A heading that skips its first sibling stays body text."),
+        (750, "helv", "2"),
+    ],
+]
+
+
+def build() -> bytes:
+    document = pymupdf.open()
+    for lines in PAGES:
+        page = document.new_page(width=612, height=792)
+        for y, font, text in lines:
+            page.insert_text((72, y), text, fontname=font, fontsize=11)
+    return _bytes(document)
+
+
+HEADER = "Guidance on Nonclinical Safety Studies"
+TABLE = [
+    [("Dose to be", "Administered"), ("Start and", "Maximum Doses")],
+    [("Total dose", "under 100 ug"), ("Maximal and", "starting doses")],
+]
+
+
+def build_rotated() -> bytes:
+    document = pymupdf.open()
+    for number, heading in [(1, "1. INTRODUCTION"), (2, None), (3, "2. SCOPE")]:
+        page = document.new_page(width=612, height=792)
+        if heading is None:
+            page.set_rotation(90)
+        _upright_text(page, 72, 78, HEADER)
+        _upright_text(page, 300, page.rect.height - 40, str(number))
+        if heading is not None:
+            _upright_text(page, 72, 140, heading, "hebo")
+            _upright_text(page, 72, 160, f"Body of {heading.split()[1].lower()}.")
+            continue
+        for row, cells in enumerate(TABLE):
+            for col, lines in enumerate(cells):
+                left, top = 72 + col * 200, 140 + row * 50
+                cell = pymupdf.Rect(left, top, left + 200, top + 50)
+                page.draw_rect(cell * page.derotation_matrix)
+                for i, line in enumerate(lines):
+                    _upright_text(page, left + 6, top + 18 + i * 14, line)
+    return _bytes(document)
+
+
+def _upright_text(page: pymupdf.Page, x: float, y: float, line: str, font: str = "helv") -> None:
+    at = pymupdf.Point(x, y) * page.derotation_matrix
+    page.insert_text(at, line, fontname=font, fontsize=11, rotate=page.rotation)
+
+
+FOOTNOTED = [
+    [
+        (100, "hebo", "I. INTRODUCTION", ""),
+        (140, "helv", "The rule applies to drugs", "1"),
+        (160, "helv", "and the sentence runs onto", ""),
+    ],
+    [
+        (80, "helv", "the next page.", "2"),
+        (120, "hebo", "II. DISCUSSION", ""),
+        (140, "helv", "Closing text.", ""),
+    ],
+]
+
+
+def build_footnoted() -> bytes:
+    document = pymupdf.open()
+    for number, lines in enumerate(FOOTNOTED, 1):
+        page = document.new_page(width=612, height=792)
+        page.insert_text((72, 40), "Contains Nonbinding Recommendations", fontname="hebo")
+        inline = number == 1
+        for y, font, text, marker in lines:
+            page.insert_text((72, y), text, fontname=font, fontsize=12)
+            if marker and inline:
+                _raised_marker(page, y, text, font, marker)
+        footnote = f" The {['first', 'second'][number - 1]} footnote."
+        page.insert_text((72, 680), str(number), fontname="helv", fontsize=6.5)
+        page.insert_text((76, 680), footnote, fontname="helv", fontsize=10)
+        page.insert_text((300, 707), str(number), fontname="helv", fontsize=10)
+        for y, font, text, marker in lines:
+            if marker and not inline:
+                _raised_marker(page, y, text, font, marker)
+    return _bytes(document)
+
+
+def _raised_marker(page: pymupdf.Page, y: float, text: str, font: str, marker: str) -> None:
+    right = 72 + pymupdf.get_text_length(text, fontname=font, fontsize=12)
+    page.insert_text((right, y - 4), marker, fontname="helv", fontsize=8)
+
+
+def build_marker_led() -> bytes:
+    document = pymupdf.open()
+    page = document.new_page(width=612, height=792)
+    page.insert_text((72, 100), "I. INTRODUCTION", fontname="hebo", fontsize=12)
+    left = "Staged approval is most common for pivotal studies"
+    right = 72 + pymupdf.get_text_length(left, fontname="helv", fontsize=12)
+    page.insert_text((right, 133), "1", fontname="helv", fontsize=8)
+    page.insert_text((right + 5, 140), "in which many subjects", fontname="helv", fontsize=12)
+    page.insert_text((72, 140), left, fontname="helv", fontsize=12)
+    page.insert_text((72, 154), "will be enrolled.", fontname="helv", fontsize=12)
+    page.insert_text((72, 680), "1", fontname="helv", fontsize=6.5)
+    page.insert_text((76, 681), "For studies of a device.", fontname="helv", fontsize=10)
+    return _bytes(document)
+
+
+OUTLINED = [
+    [
+        (1, 100, "hebo", "I. INTRODUCTION"),
+        (0, 120, "helv", "This guidance has an outline."),
+        (2, 150, "hebo", "A. Scope"),
+        (3, 180, "heit", "1. Oversight of Other Parties Involved in the"),
+        (0, 195, "heit", "Conduct of a Clinical Trial"),
+        (4, 220, "helv", "a. Study staff"),
+        (0, 240, "helv", "Staff text."),
+        (4, 270, "helv", "b. Other parties"),
+        (0, 290, "helv", "Party text."),
+    ],
+    [
+        (1, 100, "hebo", "ATTACHMENT A:  FORM 1572"),
+        (0, 120, "helv", "Form text."),
+        (0, 160, "helv", "Appendix"),
+        (1, 180, "hebo", "CATEGORIES OF RESEARCH\\1\\"),
+        (0, 200, "helv", "Category text."),
+    ],
+]
+OUTLINE_TITLES = {
+    "1. Oversight of Other Parties Involved in the": "1. Oversight of Other Parties Involved in "
+    "the Conduct of a Clinical Trial4F",
+}
+
+
+def build_outlined() -> bytes:
+    document = pymupdf.open()
+    toc = []
+    for number, lines in enumerate(OUTLINED, 1):
+        page = document.new_page(width=612, height=792)
+        for level, y, font, text in lines:
+            page.insert_text((72, y), text, fontname=font, fontsize=12)
+            if level:
+                to = pymupdf.Point(72, y - 13)
+                title = OUTLINE_TITLES.get(text, text)
+                toc.append([level, title, number, {"kind": pymupdf.LINK_GOTO, "to": to}])
+    document.set_toc(toc)
+    return _bytes(document)
+
+
+def _bytes(document: pymupdf.Document) -> bytes:
+    data: bytes = document.tobytes(garbage=4, deflate=True, no_new_id=True)
+    return data
+
+
+if __name__ == "__main__":
+    fixtures = Path(__file__).parent
+    (fixtures / "guidance.pdf").write_bytes(build())
+    (fixtures / "rotated.pdf").write_bytes(build_rotated())
+    (fixtures / "footnoted.pdf").write_bytes(build_footnoted())
+    (fixtures / "outlined.pdf").write_bytes(build_outlined())
+    (fixtures / "marker_led.pdf").write_bytes(build_marker_led())

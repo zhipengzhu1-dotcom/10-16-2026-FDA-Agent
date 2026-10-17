@@ -49,7 +49,7 @@ _ROMAN = {
 }
 
 
-def _get(url: str) -> bytes:
+def http_get(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
     for attempt in range(_ATTEMPTS):
         delay = float(2**attempt)
@@ -72,17 +72,17 @@ def _get(url: str) -> bytes:
 
 
 def latest_date() -> date:
-    titles = json.loads(_get(f"{API}/titles.json"))["titles"]
+    titles = json.loads(http_get(f"{API}/titles.json"))["titles"]
     title_21 = next(t for t in titles if t["number"] == 21)
     return date.fromisoformat(title_21["up_to_date_as_of"])
 
 
 def fetch_part(part: int, on: date) -> bytes:
-    return _get(f"{API}/full/{on.isoformat()}/title-21.xml?part={part}")
+    return http_get(f"{API}/full/{on.isoformat()}/title-21.xml?part={part}")
 
 
 def fetch_effective_dates(part: int, on: date) -> dict[str, date]:
-    versions = json.loads(_get(f"{API}/versions/title-21.json?part={part}"))["content_versions"]
+    versions = json.loads(http_get(f"{API}/versions/title-21.json?part={part}"))["content_versions"]
     dates: dict[str, date] = {}
     for version in versions:
         effective = date.fromisoformat(version["date"])
