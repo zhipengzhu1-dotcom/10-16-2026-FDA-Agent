@@ -23,6 +23,15 @@ GOLD = {
     "ICH E6(R3) 2.8.7": "and by the investigator or delegated investigator site staff who "
     "conducted the informed consent discussion",
 }
+FORM_1572 = "Form FDA 1572 spaces letters apart inside ADDRESS and OTHER (recorded follow-up)"
+KNOWN_ORDER_GAPS = {
+    ("ich-m3r2", "and", "same"): "pdftotext sets two Table 1 cells one space apart",
+    ("fda-sponsor-safety-reporting", "no", "cfr"): "Appendix flowchart text (recorded follow-up)",
+    ("fda-investigator-responsibilities", "and", "address"): FORM_1572,
+    ("fda-investigator-responsibilities", "address", "of"): FORM_1572,
+    ("fda-investigator-responsibilities", "or", "other"): FORM_1572,
+    ("fda-investigator-responsibilities", "other", "research"): FORM_1572,
+}
 
 
 def page_lines(path: Path) -> list[list[str]]:
@@ -34,13 +43,11 @@ def page_lines(path: Path) -> list[list[str]]:
     else:
         with pymupdf.open(path) as document:
             pages = [page.get_text("text") for page in document]
-    return [
-        [" ".join(line.split()) for line in page.splitlines() if line.strip()] for page in pages
-    ]
+    return [[line.rstrip() for line in page.splitlines() if line.strip()] for page in pages]
 
 
 def shape(line: str) -> str:
-    return re.sub(r"\d+", "#", line)
+    return re.sub(r"\d+", "#", " ".join(line.split()))
 
 
 def repeated_edge_lines(pages: list[list[str]]) -> set[str]:
@@ -65,6 +72,19 @@ def strip_edges(lines: list[str], removed: set[str]) -> list[str]:
 
 def characters(text: str) -> Counter[str]:
     return Counter(c for c in text if not c.isspace())
+
+
+def word_pairs(text: str) -> Counter[tuple[str, str]]:
+    words = re.findall(r"[^\W\d_]+", text.lower())
+    return Counter(zip(words, words[1:], strict=False))
+
+
+def out_of_order(lines: list[str], stored: str) -> Counter[tuple[str, str]]:
+    expected = sum(
+        (word_pairs(segment) for line in lines for segment in re.split(r"\s{2,}", line.strip())),
+        Counter(),
+    )
+    return expected - word_pairs(stored)
 
 
 def starts_on_page(words: list[str], page: str, after: str) -> bool:
@@ -112,7 +132,7 @@ def main() -> int:
         first = next(
             i
             for i, line in enumerate(bodies[start - 1])
-            if line.startswith(source.first_body_heading)
+            if " ".join(line.split()).startswith(source.first_body_heading)
         )
         bodies[start - 1] = bodies[start - 1][first:]
         expected = characters(" ".join(" ".join(lines) for lines in bodies[start - 1 :]))
@@ -127,6 +147,15 @@ def main() -> int:
             failures.append(f"{source.key} dropped characters {dict(dropped.most_common(20))}")
         if extra:
             failures.append(f"{source.key} stored characters not in the body {dict(extra)}")
+        body = [line for lines in bodies[start - 1 :] for line in lines]
+        misordered = out_of_order(body, " ".join(text for _, text, _ in rows))
+        known = {pair: KNOWN_ORDER_GAPS.get((source.key, *pair)) for pair in misordered}
+        print(f"ORDER {source.key}: {sum(misordered.values())} word pairs not in the stored order")
+        for pair, why in known.items():
+            print(f"ORDER {source.key} {pair}: {why or 'UNEXPLAINED'}")
+        misordered = Counter({pair: n for pair, n in misordered.items() if known[pair] is None})
+        if misordered:
+            failures.append(f"{source.key} word pairs out of order {list(misordered)[:20]}")
         for citation, text, url in rows:
             words = text.split()[:12]
             page = page_of(url)
