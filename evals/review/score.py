@@ -13,9 +13,12 @@ precision but not citation accuracy.
 Metrics, rounded to four places:
   recall             matched gold rows / gold rows
   precision          matched findings / findings
-  citation accuracy  matched findings citing the row's citation / findings
-  faithfulness       findings whose every quote occurs in the stored text of its citation
-                     (regtext.json, whitespace-normalized) / findings
+  citation accuracy  matched findings whose primary (first) citation is the row's
+                     citation / findings
+  faithfulness       findings whose every quote has at least 5 words and occurs in the
+                     stored text of its own citation (whitespace-normalized) / findings
+Only the primary citation counts, and every quote must be a real passage of the text it
+cites, so a finding that cites every regulation with a one-word quote scores nothing.
 Precision, citation accuracy, and faithfulness are None when there are no findings.
 """
 
@@ -32,6 +35,7 @@ from pydantic import BaseModel, ConfigDict
 from fda_copilot.domain.models import Domain, Finding, RegCitation
 
 HERE = Path(__file__).parent
+MIN_QUOTE_WORDS = 5
 
 
 class _Frozen(BaseModel):
@@ -118,11 +122,14 @@ def score(
 
     every = [finding for batch in findings.values() for finding in batch]
     cited = sum(
-        any(_squash(c.citation) == _squash(row.citation) for c in finding.citations)
-        for finding, row in hits
+        _squash(finding.citations[0].citation) == _squash(row.citation) for finding, row in hits
     )
     faithful = sum(
-        all(_squash(c.quote) in stored.get(_squash(c.citation), "") for c in finding.citations)
+        all(
+            len(c.quote.split()) >= MIN_QUOTE_WORDS
+            and _squash(c.quote) in stored.get(_squash(c.citation), "")
+            for c in finding.citations
+        )
         for finding in every
     )
     remaining = set(open_rows.values())

@@ -151,3 +151,56 @@ def test_cli_prints_recall_and_writes_report(tmp_path: Path) -> None:
 
 def test_committed_protocols_and_gold_match_their_source() -> None:
     assert build.drift(build.render()) == set()
+
+
+def test_citing_every_stored_regulation_with_a_one_word_quote_does_not_score() -> None:
+    gold = score.load_gold()
+    regtext = score.load_regtext()
+    shotgun = [{"citation": citation, "quote": "the"} for citation in regtext]
+    findings: dict[str, list[Finding]] = {}
+    for row in gold:
+        findings.setdefault(row.protocol, []).append(
+            Finding.model_validate(
+                {
+                    "doc_section_id": row.section,
+                    "domain": row.domain,
+                    "severity": "major",
+                    "issue": "something is wrong",
+                    "citations": shotgun,
+                    "proposed_fix": "fix it",
+                }
+            )
+        )
+
+    report = score.score(gold, findings, regtext)
+
+    assert (report.recall, report.precision) == (1.0, 1.0)
+    assert report.citation_accuracy == 0.0217
+    assert report.faithfulness == 0.0
+
+
+def test_a_quote_counts_only_with_five_words_from_its_own_citation() -> None:
+    confidentiality = "21 CFR 50.25(a)(5)"
+    findings = [
+        finding("Confidentiality", confidentiality, "Food and Drug Administration may inspect"),
+        finding("Confidentiality", confidentiality, "Drug Administration may inspect"),
+        finding("Confidentiality", confidentiality, "refusal to participate will involve no"),
+        Finding.model_validate(
+            {
+                "doc_section_id": "Voluntary Participation",
+                "domain": "GCP",
+                "severity": "major",
+                "issue": "penalty for leaving",
+                "citations": [
+                    {"citation": "21 CFR 50.25(a)(8)", "quote": "statement that participation is voluntary"},
+                    {"citation": confidentiality, "quote": "inspect"},
+                ],
+                "proposed_fix": "remove the penalty",
+            }
+        ),
+    ]
+
+    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT)
+
+    assert report.faithfulness == 0.25
+    assert report.citation_accuracy == 0.5
