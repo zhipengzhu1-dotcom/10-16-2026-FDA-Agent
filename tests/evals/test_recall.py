@@ -48,7 +48,7 @@ QUESTIONS = [
     ),
 ]
 RETRIEVED = {
-    "ind-1": ["21 CFR 58.33", "21 CFR 312.32(c)(2)"],
+    "ind-1": ["21 CFR 312.32(c)(2)", "21 CFR 312.32(c)(1)"],
     "gcp-1": [
         "21 CFR 58.35(a)",
         "21 CFR 58.33",
@@ -69,6 +69,40 @@ def test_recall_at_5_credits_rows_that_hold_the_label_and_ignores_rank_six() -> 
         "IND": 1.0,
         "GLP": 1.0,
         "GCP": 0.0,
+    }
+
+
+def test_a_parent_label_credits_only_the_rows_that_hold_its_quote() -> None:
+    texts = {
+        "21 CFR 312.32(c)(1)": "(c)(1) IND safety reports. The sponsor must notify FDA and all "
+        "participating investigators in an IND safety report of potential serious risks.",
+        "21 CFR 312.32(c)(3)": "(3) Reporting format or frequency. FDA may require a sponsor to "
+        "submit IND safety reports in a format or at a frequency different than that required.",
+    }
+    ind_04 = run.Question.model_validate(
+        {
+            "id": "ind-04",
+            "domain": "IND",
+            "question": "What are the sponsor's IND safety reporting obligations to FDA and to "
+            "participating investigators?",
+            "citations": [
+                {
+                    "citation": "21 CFR 312.32(c)",
+                    "quote": "IND safety reports. The sponsor must notify FDA and all "
+                    "participating investigators",
+                }
+            ],
+        }
+    )
+    resolved = run.resolve_labels([ind_04], texts)
+
+    assert run.recall_at_k([ind_04], resolved, {"ind-04": ["21 CFR 312.32(c)(3)"]}) == {
+        "overall": 0.0,
+        "IND": 0.0,
+    }
+    assert run.recall_at_k([ind_04], resolved, {"ind-04": ["21 CFR 312.32(c)(1)"]}) == {
+        "overall": 1.0,
+        "IND": 1.0,
     }
 
 

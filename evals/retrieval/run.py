@@ -50,11 +50,12 @@ def resolve_labels(questions: Sequence[Question], texts: Mapping[str, str]) -> d
         rows = []
         for label in question.citations:
             holders = resolve(label.citation, texts)
+            quoted = frozenset(holder for holder in holders if label.quote in texts[holder])
             if not holders:
                 problems.append(f"{question.id}: {label.citation} resolves to no stored row")
-            elif not any(label.quote in texts[holder] for holder in holders):
+            elif not quoted:
                 problems.append(f"{question.id}: {label.citation} rows lack {label.quote!r}")
-            rows.append(frozenset(holders))
+            rows.append(quoted)
         resolved[question.id] = tuple(rows)
     if problems:
         raise UnresolvedLabels("\n".join(problems))
