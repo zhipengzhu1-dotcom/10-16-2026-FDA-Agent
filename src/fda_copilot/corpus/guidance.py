@@ -6,6 +6,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from importlib.resources import files
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple
 
@@ -16,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 from fda_copilot.corpus import ecfr
 from fda_copilot.domain.models import RegCitation, RegSection, RegSource
 
-SOURCES = Path(__file__).parents[3] / "corpus" / "guidance_sources.yaml"
+SOURCES = files("fda_copilot.corpus") / "guidance_sources.yaml"
 MAX_FDA_GUIDANCE = 8
 _MARGIN = 0.12
 _FURNITURE_PAGE_SHARE = 0.5
@@ -67,7 +69,7 @@ class _Sources(BaseModel):
         return self
 
 
-def load_sources(path: Path = SOURCES) -> list[Source]:
+def load_sources(path: Traversable = SOURCES) -> list[Source]:
     return _Sources(sources=yaml.safe_load(path.read_text())).sources
 
 
