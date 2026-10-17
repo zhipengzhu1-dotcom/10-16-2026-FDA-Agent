@@ -3,16 +3,20 @@ import io
 import re
 import zipfile
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Any, NamedTuple
 
 import docx
 import pymupdf
+from docx.document import Document
 from docx.opc.exceptions import PackageNotFoundError
+from docx.oxml.ns import qn
+from docx.oxml.xmlchemy import BaseOxmlElement
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+from docx.text.run import Run
 
 from fda_copilot.domain.models import CharSpan, DocSection, DocSectionId
 
@@ -27,9 +31,11 @@ class ParsedDocument:
 
     `text` is the canonical extracted text: every extracted line in document order, each
     followed by one newline. A PDF line is one pymupdf text line, a DOCX line is one body
-    paragraph or one table row with cells joined by tabs. Every section's span indexes into
-    `text`, its `text` equals that slice, and the spans tile `text` in order with no gap and
-    no overlap. Text before the first heading is a section whose heading is empty.
+    paragraph or one table row with cells joined by tabs. DOCX text inside content controls
+    is included, and tracked changes read as accepted: insertions kept, deletions dropped.
+    Every section's span indexes into `text`, its `text` equals that slice, and the spans
+    tile `text` in order with no gap and no overlap. Text before the first heading is a
+    section whose heading is empty.
     """
 
     text: str
@@ -63,6 +69,7 @@ class _PdfLine:
     text: str
     page: int
     style: _Style | None
+    title: str
 
 
 _SECTION_NUMBER = re.compile(r"\s*(\d+(?:\.\d+)*\.?)(?:\s+|$)")
@@ -109,17 +116,55 @@ def _assemble(lines: Sequence[_Line], doc_key: str) -> ParsedDocument:
 def _docx_lines(filename: str, data: bytes) -> list[_Line]:
     try:
         document = docx.Document(io.BytesIO(data))
-    except (zipfile.BadZipFile, PackageNotFoundError, KeyError, ValueError) as error:
+    except (
+        zipfile.BadZipFile,
+        PackageNotFoundError,
+        KeyError,
+        ValueError,
+        SyntaxError,
+    ) as error:
         raise UnsupportedDocument(f"{filename}: not a readable .docx file") from error
     lines: list[_Line] = []
-    for block in document.iter_inner_content():
-        if isinstance(block, Paragraph):
-            text = block.text
-            heading = _squash(text) if _is_heading_style(block) else ""
+    for element in _blocks(document.element.body):
+        if element.tag == qn("w:p"):
+            paragraph = Paragraph(element, document)
+            text = _paragraph_text(paragraph)
+            heading = _squash(text) if _is_heading_style(paragraph) else ""
             lines.append(_Line(text, heading or None))
-        elif isinstance(block, Table):
-            lines.extend(_Line("\t".join(cell.text for cell in row.cells)) for row in block.rows)
+        else:
+            lines.extend(
+                _Line("\t".join(_cell_text(cell._tc, document) for cell in row.cells))
+                for row in Table(element, document).rows
+            )
     return lines
+
+
+def _blocks(container: BaseOxmlElement) -> Iterator[BaseOxmlElement]:
+    for child in container.iterchildren():
+        if child.tag in (qn("w:p"), qn("w:tbl")):
+            yield child
+        elif child.tag in (qn("w:sdt"), qn("w:sdtContent"), qn("w:customXml")):
+            yield from _blocks(child)
+
+
+def _paragraph_text(paragraph: Paragraph) -> str:
+    return "".join(Run(r, paragraph).text for r in _runs(paragraph._p))
+
+
+def _runs(container: BaseOxmlElement) -> Iterator[BaseOxmlElement]:
+    for child in container.iterchildren():
+        if child.tag == qn("w:r"):
+            yield child
+        elif child.tag not in (qn("w:del"), qn("w:moveFrom")):
+            yield from _runs(child)
+
+
+def _cell_text(tc: BaseOxmlElement, document: Document) -> str:
+    return "\n".join(
+        _paragraph_text(Paragraph(element, document))
+        for element in _blocks(tc)
+        if element.tag == qn("w:p")
+    )
 
 
 def _is_heading_style(paragraph: Paragraph) -> bool:
@@ -135,6 +180,8 @@ def _pdf_lines(filename: str, data: bytes) -> list[_Line]:
     with document:
         if document.needs_pass:
             raise UnsupportedDocument(f"{filename}: the PDF is encrypted")
+        if document.page_count == 0:
+            raise UnsupportedDocument(f"{filename}: the PDF has no pages")
         lines: list[_PdfLine] = []
         for page_number, page in enumerate(document.pages(), start=1):
             page_text: dict[str, Any] = page.get_text(  # type: ignore[no-untyped-call]
@@ -146,6 +193,10 @@ def _pdf_lines(filename: str, data: bytes) -> list[_Line]:
                 for line in block["lines"]
             )
         toc: list[list[Any]] = document.get_toc()
+    if not any(line.style for line in lines):
+        raise UnsupportedDocument(
+            f"{filename}: the PDF has no text layer; it may be a scan that needs OCR"
+        )
     headings = _outline_headings(toc, lines) or _font_headings(lines)
     return [_Line(line.text, headings.get(index)) for index, line in enumerate(lines)]
 
@@ -153,6 +204,9 @@ def _pdf_lines(filename: str, data: bytes) -> list[_Line]:
 def _pdf_line(line: dict[str, Any], page: int) -> _PdfLine:
     spans: list[dict[str, Any]] = line["spans"]
     inked = [span for span in spans if any(char.isalnum() for char in span["text"])]
+    title = "".join(
+        span["text"] for span in spans if not span["flags"] & pymupdf.TEXT_FONT_SUPERSCRIPT
+    )
     style = None
     if inked:
         bold = all(
@@ -160,7 +214,7 @@ def _pdf_line(line: dict[str, Any], page: int) -> _PdfLine:
             for span in inked
         )
         style = _Style(str(inked[0]["font"]), round(max(float(s["size"]) for s in inked), 1), bold)
-    return _PdfLine("".join(span["text"] for span in spans), page, style)
+    return _PdfLine("".join(span["text"] for span in spans), page, style, _squash(title))
 
 
 def _outline_headings(toc: Sequence[Sequence[Any]], lines: Sequence[_PdfLine]) -> dict[int, str]:
@@ -177,13 +231,24 @@ def _outline_headings(toc: Sequence[Sequence[Any]], lines: Sequence[_PdfLine]) -
                 continue
             if line.page > page + 1:
                 break
-            got = _title_key(line.text)
-            if got == wanted or (len(got) >= 4 and wanted.startswith(got)):
+            if _title_at(lines, index, wanted):
                 start = index - 1 if index > cursor and _is_bare_number(lines[index - 1]) else index
                 headings[start] = title
                 cursor = start + 1
                 break
     return headings
+
+
+def _title_at(lines: Sequence[_PdfLine], index: int, wanted: str) -> bool:
+    joined = ""
+    for line_index in range(index, len(lines)):
+        joined = f"{joined} {lines[line_index].title}"
+        got = _title_key(joined)
+        if got == wanted:
+            return True
+        if not got or not wanted.startswith(got):
+            return False
+    return False
 
 
 def _is_bare_number(line: _PdfLine) -> bool:
@@ -227,7 +292,7 @@ def _font_headings(lines: Sequence[_PdfLine]) -> dict[int, str]:
             and not _SECTION_NUMBER.match(lines[end].text)
         ):
             end += 1
-        heading = _squash(" ".join(line.text for line in lines[index:end]))
+        heading = _squash(" ".join(line.title for line in lines[index:end]))
         if (
             len(heading) <= _MAX_HEADING_CHARS
             and any(char.isalpha() for char in heading)
