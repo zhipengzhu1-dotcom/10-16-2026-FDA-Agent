@@ -383,7 +383,7 @@ title = "Investigational Plan GS-110: Feasibility Study of the GlucoSense Implan
 [[protocol.section]]
 heading = "Purpose"
 text = """
-GlucoSense is a fully implanted glucose sensor intended for adults with type 1 diabetes. This feasibility study enrolls 30 subjects for 180 days to estimate sensor accuracy against laboratory reference glucose.
+GlucoSense is a fully implanted glucose sensor intended for adults with type 1 diabetes. This feasibility study enrolls 30 subjects for 180 days to estimate sensor accuracy against laboratory reference glucose. The investigation is expected to last 18 months from first implant to final report: 6 months of enrollment, 180 days of follow-up per subject, and 6 months for analysis and reporting.
 """
 
 [[protocol.section]]
@@ -729,7 +729,7 @@ This study assesses the potential of DX-7 cream to cause delayed contact hyperse
 [[protocol.section]]
 heading = "Test and Control Articles"
 text = """
-The test article is DX-7 cream (code DX-7-C, batch 26A01). The control article is the cream base without DX-7 (code DX-7-V, batch 26V01), whose identity, strength, purity, and composition are determined and documented for its batch. The sponsor determined the stability of both articles before the study started.
+The test article is DX-7 cream (code DX-7-C, batch 26A01). The control article is the cream base without DX-7 (code DX-7-V, batch 26V01), whose identity, strength, purity, and composition are determined and documented for its batch. The sponsor documents the method of fabrication of both articles and determined the stability of both before the study started.
 
 For the intradermal induction injections, each article is mixed with an emulsion of Freund's complete adjuvant. The uniformity, concentration, and stability of each mixture are analyzed before use.
 """
@@ -853,7 +853,7 @@ The sponsor is Rexon Pharma, Inc. The study is conducted at Northfield Preclinic
 [[protocol.section]]
 heading = "Study Director"
 text = """
-Dosing begins under the supervision of the senior technician. Testing facility management will designate a study director once the in-life phase is complete.
+The sponsor approved this protocol on 12 January 2026. Dosing begins under the supervision of the senior technician. Testing facility management will designate a study director once the in-life phase is complete, and the study director signs and dates the protocol at that time.
 """
 
 [protocol.section.violation]
@@ -918,12 +918,6 @@ The study keeps the protocol and its amendments, all raw data, dose formulation 
 heading = "Statistical Methods"
 text = """
 Maternal body weights and fetal weights are compared between each dose group and the control with analysis of variance followed by Dunnett's test, with the litter as the unit of analysis. Fetal malformation and variation incidences are compared with Fisher's exact test on litter counts. Both use a two-sided significance level of 0.05.
-"""
-
-[[protocol.section]]
-heading = "Protocol Approval"
-text = """
-The sponsor approved this protocol on 12 January 2026. The study director signs and dates the protocol when designated.
 """
 
 [[protocol.section]]
