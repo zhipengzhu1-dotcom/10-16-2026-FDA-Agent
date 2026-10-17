@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 import psycopg
+import pymupdf
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -236,6 +237,40 @@ def fixture_source(name: str, **fields: object) -> tuple[Source, bytes]:
     pdf = (Path(__file__).parent / "fixtures" / name).read_bytes()
     update = {"key": name.removesuffix(".pdf"), "sha256": hashlib.sha256(pdf).hexdigest()}
     return SOURCE.model_copy(update={**update, **fields}), pdf
+
+
+def test_the_outline_sets_boundaries_citations_and_titles_where_the_source_has_no_grammar() -> None:
+    source, pdf = fixture_source("outlined.pdf", heading_ranks=None)
+
+    rows = guidance.parse(source, pdf)
+
+    assert [(row.citation, row.title, row.text) for row in rows] == [
+        ("FDA Test Guidance I", "INTRODUCTION", "I. INTRODUCTION This guidance has an outline."),
+        ("FDA Test Guidance I.A", "Scope", "A. Scope"),
+        (
+            "FDA Test Guidance I.A.1",
+            "Oversight of Other Parties Involved in the Conduct of a Clinical Trial",
+            "1. Oversight of Other Parties Involved in the Conduct of a Clinical Trial",
+        ),
+        ("FDA Test Guidance I.A.1.a", "Study staff", "a. Study staff Staff text."),
+        ("FDA Test Guidance I.A.1.b", "Other parties", "b. Other parties Party text."),
+        ("FDA Test Guidance Attachment A", "FORM 1572", "ATTACHMENT A: FORM 1572 Form text."),
+        (
+            "FDA Test Guidance Appendix",
+            "CATEGORIES OF RESEARCH",
+            "Appendix CATEGORIES OF RESEARCH\\1\\ Category text.",
+        ),
+    ]
+
+
+def test_an_outline_entry_that_is_not_a_numbered_heading_or_trailing_appendix_is_refused() -> None:
+    source, pdf = fixture_source("outlined.pdf", heading_ranks=None)
+    with pymupdf.Document(stream=pdf) as document:
+        document.set_toc([[1, "I. INTRODUCTION", 1], [2, "Unnumbered aside", 1]])
+        broken = document.tobytes()
+
+    with pytest.raises(ValueError, match="outlined: outline entry 'Unnumbered aside'"):
+        guidance.parse(source, broken)
 
 
 def test_a_rotated_page_drops_its_running_header_and_reads_its_table_cell_by_cell() -> None:

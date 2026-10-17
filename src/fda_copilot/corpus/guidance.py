@@ -23,6 +23,8 @@ MAX_FDA_GUIDANCE = 8
 _MARGIN = 0.12
 _FURNITURE_PAGE_SHARE = 0.5
 _BROKEN_WORD = re.compile(r"\w-$")
+_OUTLINE_LABEL = re.compile(r"([IVX]+|[A-Z]|\d{1,2}|[a-z])\.(?=\s|$)")
+_ANNEX = re.compile(r"(ATTACHMENT|APPENDIX)(?:\s+([A-Z])\b)?[\s:]*", re.IGNORECASE)
 _MARKERS = re.compile(r"\d{1,3}(?:, ?\d{1,3})*,?")
 
 
@@ -51,7 +53,7 @@ class Source(BaseModel):
     sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
     why: Annotated[str, Field(pattern=r"\S")]
     first_body_heading: str
-    heading_ranks: tuple[tuple[Kind, ...], ...]
+    heading_ranks: tuple[tuple[Kind, ...], ...] | None = None
     unstyled: tuple[Kind, ...] = ()
     named: tuple[str, ...] = ()
     rename: dict[str, str] = Field(default_factory=dict)
@@ -99,6 +101,7 @@ class Line(NamedTuple):
     page: int
     text: str
     styled: bool
+    top: float = 0.0
     notes: tuple[str, ...] = ()
 
 
@@ -124,8 +127,30 @@ class _Page(NamedTuple):
     margin: float
 
 
+class _Entry(NamedTuple):
+    level: int
+    title: str
+    page: int
+    y: float
+
+
+_Headings = dict[int, tuple[str, str]]
+
+
 def parse(source: Source, pdf: bytes) -> list[RegSection]:
-    return chunk(source, body(source, pdf))
+    lines = body(source, pdf)
+    if source.heading_ranks is None:
+        return _sections(source, lines, _outline_headings(source, lines, _outline(pdf)))
+    return chunk(source, lines)
+
+
+def _outline(pdf: bytes) -> list[_Entry]:
+    with pymupdf.Document(stream=pdf, filetype="pdf") as document:  # type: ignore[no-untyped-call]
+        toc = document.get_toc(simple=False)
+    return [
+        _Entry(level, title, page, float(dest["to"].y) if "to" in dest else 0.0)
+        for level, title, page, dest in toc
+    ]
 
 
 def body(source: Source, pdf: bytes) -> list[Line]:
@@ -298,8 +323,8 @@ def _page_rows(
         row.sort(key=lambda line: line.left)
         groups.append((row[0].top, row[0].left, " ".join(ln.text for ln in row), row))
     return [
-        (Line(page, text, group[0].styled), tuple(m for ln in group for m in ln.markers))
-        for _, _, text, group in sorted(groups, key=lambda item: item[:2])
+        (Line(page, text, group[0].styled, top), tuple(m for ln in group for m in ln.markers))
+        for top, _, text, group in sorted(groups, key=lambda item: item[:2])
     ]
 
 
@@ -455,25 +480,103 @@ class _Section:
 
 
 def chunk(source: Source, lines: Sequence[Line]) -> list[RegSection]:
-    ranks = {kind: rank for rank, kinds in enumerate(source.heading_ranks) for kind in kinds}
+    return _sections(source, lines, _grammar_headings(source, lines))
+
+
+def _grammar_headings(source: Source, lines: Sequence[Line]) -> _Headings:
+    ranks = {kind: rank for rank, kinds in enumerate(source.heading_ranks or ()) for kind in kinds}
     stack: list[_Node] = []
     last: dict[int, dict[Kind, str]] = {}
-    sections: list[_Section] = []
-    for line in lines:
+    headings: _Headings = {}
+    for i, line in enumerate(lines):
         node = _heading(source, ranks, stack, last, line)
         if node is None:
-            if not sections:
-                raise ValueError(f"{source.key}: body starts with a non-heading {line.text!r}")
-            sections[-1].lines.append(line.text)
-            sections[-1].notes.extend(line.notes)
             continue
         stack = [n for n in stack if n.rank < node.rank] + [node]
         last = {rank: labels for rank, labels in last.items() if rank <= node.rank}
         last.setdefault(node.rank, {})[node.kind] = node.label
         title = next((n.title for n in reversed(stack) if n.title), source.title)
-        sections.append(
-            _Section(_cite(source, stack), title, line.page, [line.text], list(line.notes))
+        headings[i] = (_cite(source, stack), title)
+    return headings
+
+
+def _outline_headings(source: Source, lines: Sequence[Line], entries: list[_Entry]) -> _Headings:
+    stack: list[_Node] = []
+    headings: _Headings = {}
+    start = 0
+    for entry in entries:
+        node = _outline_node(entry.level, _clean_title(entry.title), stack)
+        if node is None:
+            raise ValueError(
+                f"{source.key}: outline entry {entry.title!r} is neither a numbered heading"
+                " nor a trailing appendix"
+            )
+        index = next(
+            (
+                i
+                for i in range(start, len(lines))
+                if lines[i].page == entry.page and lines[i].top >= entry.y - 4
+            ),
+            None,
         )
+        if index is None or not (
+            node.kind is Kind.named or lines[index].text.startswith(f"{node.label}.")
+        ):
+            raise ValueError(
+                f"{source.key}: outline entry {entry.title!r} is not a heading on page {entry.page}"
+            )
+        while (
+            node.kind is Kind.named
+            and index > start
+            and lines[index - 1].page == entry.page
+            and _ANNEX.fullmatch(lines[index - 1].text)
+        ):
+            index -= 1
+        stack = [n for n in stack if n.rank < node.rank] + [node]
+        headings[index] = (_cite(source, stack), node.title or source.title)
+        start = index + 1
+    return headings
+
+
+def _outline_node(level: int, title: str, stack: list[_Node]) -> _Node | None:
+    annexed = any(n.kind is Kind.named for n in stack)
+    if match := _OUTLINE_LABEL.match(title):
+        label = match.group(1)
+        if level == 1 and annexed:
+            return None
+        if level == 1 and re.fullmatch("[IVX]+", label):
+            kind = Kind.roman
+        elif label.isdigit():
+            kind = Kind.digit
+        else:
+            kind = Kind.capital if label.isupper() else Kind.small
+        return _Node(kind, label, level, title[match.end() :].strip())
+    if level != 1:
+        return None
+    if annex := _ANNEX.match(title):
+        label = " ".join(part for part in (annex.group(1).title(), annex.group(2)) if part)
+        return _Node(Kind.named, label, level, title[annex.end() :])
+    return _Node(Kind.named, "Appendix", level, title)
+
+
+def _clean_title(title: str) -> str:
+    title = re.sub(r"\\\d+\\", "", title)
+    title = re.sub(r"(?<=[^\s\d])(?:\s*,?\s*\d+F)+(?=[\s)?]|$)", "", title)
+    title = re.sub(r"\s+([?,)])", r"\1", title)
+    return " ".join(title.split())
+
+
+def _sections(source: Source, lines: Sequence[Line], headings: _Headings) -> list[RegSection]:
+    sections: list[_Section] = []
+    for i, line in enumerate(lines):
+        if i in headings:
+            citation, title = headings[i]
+            sections.append(_Section(citation, title, line.page, [line.text], list(line.notes)))
+        elif not sections:
+            raise ValueError(f"{source.key}: body starts with a non-heading {line.text!r}")
+        else:
+            sections[-1].lines.append(line.text)
+            sections[-1].notes.extend(line.notes)
 
     repeated = [c for c, n in Counter(s.citation for s in sections).items() if n > 1]
     if repeated:

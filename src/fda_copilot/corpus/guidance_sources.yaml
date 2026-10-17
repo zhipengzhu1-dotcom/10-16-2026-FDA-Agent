@@ -34,7 +34,6 @@
   sha256: 7124849af0417893a1c5d93fa6ccf2c4b4c67d5945e09060ae3977f6e0646bac
   why: The current reading of 21 CFR 312.32 IND safety reports, which replaced the 2012 guidance in December 2025.
   first_body_heading: I. INTRODUCTION
-  heading_ranks: [[roman], [capital], [digit]]
 
 - key: fda-investigator-safety-reporting
   citation: FDA Investigator Safety Reporting Guidance (2025)
@@ -45,7 +44,6 @@
   sha256: c597c1d15d048c48d94be46710658eebdff9c8017f82ec3f04ebd54ad16e577c
   why: Investigator reporting to sponsors and IRBs under 312.64 and 812.150, one document for both IND and IDE studies.
   first_body_heading: I. INTRODUCTION
-  heading_ranks: [[roman], [capital], [digit]]
 
 - key: fda-informed-consent
   citation: FDA Informed Consent Guidance (2023)
@@ -56,7 +54,6 @@
   sha256: 96b26b2edb06e20ee2872ca59f4ec7c04cde8a8b1adf98bc150764e3d52f906a
   why: Walks through each 21 CFR 50.25 consent element, the most frequent finding in a consent form review.
   first_body_heading: I. INTRODUCTION
-  heading_ranks: [[roman], [capital], [digit], [small]]
 
 - key: fda-investigator-responsibilities
   citation: FDA Investigator Responsibilities Guidance (2009)
@@ -67,7 +64,6 @@
   sha256: 140b612e6fe3e830256fc9c47794cdf5708b28f2df5d7abe146e14dfd0efadfc
   why: Investigator supervision, delegation, and Form FDA 1572 commitments under 312.60, the core of sponsor-investigator oversight.
   first_body_heading: I. INTRODUCTION
-  heading_ranks: [[roman], [capital], [digit]]
 
 - key: fda-irb-continuing-review
   citation: FDA IRB Continuing Review Guidance (2012)
@@ -78,7 +74,6 @@
   sha256: 73c8623fd3567738585994e2e182d08661854be1df11af048b9bd0b959d95cda
   why: Criteria, frequency, and lapse rules for IRB review under 21 CFR 56.108 and 56.109.
   first_body_heading: I. INTRODUCTION
-  heading_ranks: [[roman], [capital], [digit]]
 
 - key: fda-ide-decisions
   citation: FDA IDE Decisions Guidance (2014)

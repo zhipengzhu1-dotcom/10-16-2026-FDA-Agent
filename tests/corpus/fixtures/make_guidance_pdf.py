@@ -115,6 +115,47 @@ def _raised_marker(page: pymupdf.Page, y: float, text: str, font: str, marker: s
     page.insert_text((right, y - 4), marker, fontname="helv", fontsize=8)
 
 
+OUTLINED = [
+    [
+        (1, 100, "hebo", "I. INTRODUCTION"),
+        (0, 120, "helv", "This guidance has an outline."),
+        (2, 150, "hebo", "A. Scope"),
+        (3, 180, "heit", "1. Oversight of Other Parties Involved in the"),
+        (0, 195, "heit", "Conduct of a Clinical Trial"),
+        (4, 220, "helv", "a. Study staff"),
+        (0, 240, "helv", "Staff text."),
+        (4, 270, "helv", "b. Other parties"),
+        (0, 290, "helv", "Party text."),
+    ],
+    [
+        (1, 100, "hebo", "ATTACHMENT A:  FORM 1572"),
+        (0, 120, "helv", "Form text."),
+        (0, 160, "helv", "Appendix"),
+        (1, 180, "hebo", "CATEGORIES OF RESEARCH\\1\\"),
+        (0, 200, "helv", "Category text."),
+    ],
+]
+OUTLINE_TITLES = {
+    "1. Oversight of Other Parties Involved in the": "1. Oversight of Other Parties Involved in "
+    "the Conduct of a Clinical Trial4F",
+}
+
+
+def build_outlined() -> bytes:
+    document = pymupdf.open()
+    toc = []
+    for number, lines in enumerate(OUTLINED, 1):
+        page = document.new_page(width=612, height=792)
+        for level, y, font, text in lines:
+            page.insert_text((72, y), text, fontname=font, fontsize=12)
+            if level:
+                to = pymupdf.Point(72, y - 13)
+                title = OUTLINE_TITLES.get(text, text)
+                toc.append([level, title, number, {"kind": pymupdf.LINK_GOTO, "to": to}])
+    document.set_toc(toc)
+    return _bytes(document)
+
+
 def _bytes(document: pymupdf.Document) -> bytes:
     data: bytes = document.tobytes(garbage=4, deflate=True, no_new_id=True)
     return data
@@ -125,3 +166,4 @@ if __name__ == "__main__":
     (fixtures / "guidance.pdf").write_bytes(build())
     (fixtures / "rotated.pdf").write_bytes(build_rotated())
     (fixtures / "footnoted.pdf").write_bytes(build_footnoted())
+    (fixtures / "outlined.pdf").write_bytes(build_outlined())
