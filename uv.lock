@@ -285,6 +285,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "langgraph" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
     { name = "uvicorn" },
     { name = "voyageai" },
 ]
@@ -303,6 +304,7 @@ requires-dist = [
     { name = "fastapi" },
     { name = "langgraph" },
     { name = "psycopg", extras = ["binary"] },
+    { name = "pydantic", specifier = ">=2.14.1" },
     { name = "uvicorn" },
     { name = "voyageai" },
 ]
