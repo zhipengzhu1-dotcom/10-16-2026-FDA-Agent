@@ -170,7 +170,7 @@ Each live check runs on the operator's machine at the PR head.
 
 - [ ] Create `src/fda_copilot/corpus/ecfr.py`.
 - [ ] Create `src/fda_copilot/corpus/store.py` and `migrations/001_reg_sections.sql`.
-- [ ] Create `tests/corpus/fixtures/part50_section25.xml` and `tests/corpus/test_ecfr.py`.
+- [ ] Create `tests/corpus/fixtures/part50_section25.xml`, `tests/corpus/fixtures/part312_section32.xml`, and `tests/corpus/test_ecfr.py`.
 
 **Build.**
 
