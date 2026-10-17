@@ -15,6 +15,7 @@ import tomllib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import build
 import httpx
 
 HERE = Path(__file__).parent
@@ -68,7 +69,6 @@ def _level(token: str, italic: bool, stack: list[tuple[int, str]]) -> int:
 
 
 def cfr_paragraphs(section_xml: bytes) -> list[tuple[Path_, str]]:
-    """Return each <P> of a section with its paragraph path, e.g. ("c", "1", "i")."""
     root = ET.fromstring(section_xml)
     stack: list[tuple[int, str]] = []
     out: list[tuple[Path_, str]] = []
@@ -107,14 +107,39 @@ def ich_sections(pdf_text: str) -> dict[str, str]:
     return {number: " ".join(" ".join(lines).split()) for number, lines in sections.items()}
 
 
-def violations() -> list[dict[str, str]]:
-    source = tomllib.loads((HERE / "protocols.toml").read_text())
-    return [
-        {"protocol": protocol["id"], **section["violation"]}
-        for protocol in source["protocol"]
-        for section in protocol["section"]
-        if "violation" in section
-    ]
+class RegulationText:
+    def __init__(self, client: httpx.Client, date: str, log: list[str]) -> None:
+        self.client, self.date, self.log = client, date, log
+        self.sections: dict[str, bytes] = {}
+        self.ich: dict[str, str] | None = None
+
+    def _get(self, url: str) -> bytes:
+        self.log.append(f"GET {url}")
+        return _get(self.client, url)
+
+    def lookup(self, citation: str) -> str:
+        if cfr := CFR_RE.match(citation):
+            part, number, designators = cfr.groups()
+            key = f"{part}.{number}"
+            if key not in self.sections:
+                url = f"{ECFR}/full/{self.date}/title-21.xml?part={part}&section={key}"
+                self.sections[key] = self._get(url)
+            path = tuple(token for _, token, _ in DESIGNATOR.findall(designators))
+            return cfr_text(self.sections[key], path)
+        if ich := ICH_RE.match(citation):
+            if self.ich is None:
+                with tempfile.NamedTemporaryFile(suffix=".pdf") as pdf:
+                    pdf.write(self._get(ICH_PDF))
+                    pdf.flush()
+                    layout = subprocess.run(
+                        ["pdftotext", "-layout", pdf.name, "-"],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout
+                self.ich = ich_sections(layout)
+            return self.ich.get(ich.group(1), "")
+        return ""
 
 
 def main() -> int:
@@ -122,7 +147,8 @@ def main() -> int:
     parser.add_argument("--date", help="eCFR issue date, default the latest title 21 issue")
     args = parser.parse_args()
 
-    rows = violations()
+    source = build.EvalSet.model_validate(tomllib.loads((HERE / "protocols.toml").read_text()))
+    rows = [row for protocol in source.protocol for row in build.gold_rows(protocol)]
     log: list[str] = []
     regtext: dict[str, str] = {}
     failures = 0
@@ -133,35 +159,10 @@ def main() -> int:
             if t["number"] == 21
         )
         log.append(f"eCFR title 21 issue date {date}")
-        sections: dict[str, bytes] = {}
-        ich: dict[str, str] | None = None
+        regulations = RegulationText(client, date, log)
         for row in rows:
-            citation, quote = row["citation"], " ".join(row["quote"].split())
-            if cfr := CFR_RE.match(citation):
-                part, number, designators = cfr.groups()
-                key = f"{part}.{number}"
-                if key not in sections:
-                    url = f"{ECFR}/full/{date}/title-21.xml?part={part}&section={key}"
-                    sections[key] = _get(client, url)
-                    log.append(f"GET {url}")
-                path = tuple(token for _, token, _ in DESIGNATOR.findall(designators))
-                text = cfr_text(sections[key], path)
-            elif ich_match := ICH_RE.match(citation):
-                if ich is None:
-                    with tempfile.TemporaryDirectory() as tmp:
-                        pdf = Path(tmp) / "e6r3.pdf"
-                        pdf.write_bytes(_get(client, ICH_PDF))
-                        log.append(f"GET {ICH_PDF}")
-                        layout = subprocess.run(
-                            ["pdftotext", "-layout", str(pdf), "-"],
-                            check=True,
-                            capture_output=True,
-                            text=True,
-                        ).stdout
-                    ich = ich_sections(layout)
-                text = ich.get(ich_match.group(1), "")
-            else:
-                text = ""
+            citation, quote = str(row["citation"]), " ".join(str(row["quote"]).split())
+            text = regulations.lookup(citation)
             status = "OK" if quote in text else "QUOTE-NOT-FOUND" if text else "MISSING-PARAGRAPH"
             failures += status != "OK"
             log.append(f"{status} {row['protocol']} {citation} :: {quote}")

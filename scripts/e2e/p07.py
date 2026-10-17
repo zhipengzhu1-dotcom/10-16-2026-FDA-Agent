@@ -1,5 +1,6 @@
 import importlib
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 from fda_copilot.domain.models import Citation, Domain, Finding, Severity
@@ -9,13 +10,18 @@ score = importlib.import_module("score")
 
 
 class GoldReviewer:
-    """Returns each planted violation as a finding, as a perfect reviewer would."""
-
-    def __init__(self, gold: list[object]) -> None:
-        self.gold = gold
+    def __init__(self, findings: dict[str, list[Finding]]) -> None:
+        self.findings = findings
 
     def review(self, document: Path, domain: Domain) -> list[Finding]:
-        return [
+        return [f for f in self.findings.get(document.stem, []) if f.domain is domain]
+
+
+def main() -> int:
+    gold = score.load_gold()
+    planted: dict[str, list[Finding]] = defaultdict(list)
+    for row in gold:
+        planted[row.protocol].append(
             Finding(
                 doc_section_id=row.section,
                 domain=row.domain,
@@ -24,14 +30,9 @@ class GoldReviewer:
                 citations=(Citation(citation=row.citation, quote=row.quote),),
                 proposed_fix="Bring the section in line with the cited requirement.",
             )
-            for row in self.gold
-            if row.protocol == document.stem and row.domain is domain
-        ]
+        )
 
-
-def main() -> int:
-    gold = score.load_gold()
-    findings = score.review_all(GoldReviewer(gold), gold)
+    findings = score.review_all(GoldReviewer(planted), gold)
     report = score.score(gold, findings, score.load_regtext())
     for name in ("recall", "precision", "citation_accuracy", "faithfulness"):
         print(f"{name} {getattr(report, name):.2f}")

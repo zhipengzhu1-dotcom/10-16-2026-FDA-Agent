@@ -1,10 +1,3 @@
-# Source of truth for the planted-violation eval set.
-# `uv run python evals/review/build.py` writes protocols/*.docx and gold.jsonl from this file.
-# `uv run python evals/review/check_citations.py` checks every citation and quote against the live regulation text.
-# Each section carries at most one planted violation, so a section heading identifies a gold row.
-
-# ---------------------------------------------------------------- IND, 21 CFR 312
-
 [[protocol]]
 id = "ind-01"
 domain = "IND"
@@ -216,8 +209,6 @@ text = """
 The primary endpoint is analyzed with a mixed model for repeated measures that includes treatment, visit, treatment-by-visit interaction, and baseline systolic pressure. A sample of 900 patients gives 90 percent power to detect a 5 mmHg difference at a two-sided alpha of 0.05.
 """
 
-# ---------------------------------------------------------------- IDE, 21 CFR 812
-
 [[protocol]]
 id = "ide-01"
 domain = "IDE"
@@ -410,8 +401,6 @@ citation = "21 CFR 812.7(d)"
 quote = "Represent that an investigational device is safe or effective for the purposes for which it is being investigated."
 issue = "Patient brochures call the investigational device proven safe and effective."
 
-# ---------------------------------------------------------------- GLP, 21 CFR 58
-
 [[protocol]]
 id = "glp-01"
 domain = "GLP"
@@ -593,8 +582,6 @@ Raw data, specimens, and study records are kept in the archive for 12 months aft
 citation = "21 CFR 58.195(b)"
 quote = "shall be retained in the archive(s) for whichever of the following periods is shortest"
 issue = "Records are destroyed after 12 months, shorter than every retention period the regulation allows."
-
-# ---------------------------------------------------------------- GCP, 21 CFR 50 and 56 and ICH E6(R3)
 
 [[protocol]]
 id = "gcp-01"

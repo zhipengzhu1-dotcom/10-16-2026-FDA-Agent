@@ -157,7 +157,6 @@ def docx(protocol: Protocol) -> bytes:
 
 
 def render() -> dict[Path, bytes]:
-    """Every generated file, keyed by its path relative to evals/review."""
     source = EvalSet.model_validate(tomllib.loads((HERE / "protocols.toml").read_text()))
     files = {Path("protocols") / f"{p.id}.docx": docx(p) for p in source.protocol}
     rows = [json.dumps(row, ensure_ascii=False) for p in source.protocol for row in gold_rows(p)]
@@ -183,7 +182,6 @@ def main() -> int:
 
 
 def drift(files: dict[Path, bytes]) -> set[Path]:
-    """Paths whose committed bytes differ from the build, including orphan protocols."""
     changed = {
         p
         for p, data in files.items()
