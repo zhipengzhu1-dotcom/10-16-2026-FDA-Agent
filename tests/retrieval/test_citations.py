@@ -18,6 +18,18 @@ TEXTS = {
     "paragraph (b) of this section is a protocol amendment.",
     "21 CFR 312.30(b)(1)": "(b) Changes in a protocol. (1) A sponsor shall submit a protocol "
     "amendment describing any change in a Phase 2 or 3 protocol.",
+    "21 CFR 312.110(b)(2)": "(2) The drug has valid marketing authorization in Australia, and "
+    "complies with the laws of the country to which it is being exported, section 802(b)(1)(A), "
+    "(f), and (g) of the act, and § 1.101 of this chapter; or",
+    "21 CFR 312.42(b)(4)(i)": "(i) Any of the conditions in paragraph (b)(1) or (b)(2) of this "
+    "section apply; or",
+    "21 CFR 312.8(d)(3)": "(3) To support its calculation for cost recovery, a sponsor must "
+    "provide supporting documentation to show that the calculation is consistent with the "
+    "requirements of paragraphs (d)(1) and, if applicable, (d)(2) of this section.",
+    "21 CFR 58.43(a)": "(a) A testing facility shall have a sufficient number of animal rooms or "
+    "areas, as needed, to assure proper: (1) Separation of species or test systems, (2) isolation "
+    "of individual projects, (3) quarantine of animals, and (4) routine or specialized housing of "
+    "animals.",
     "ICH E6(R3) 2.8.7": "2.8.7 Prior to trial participation, the informed consent form should be "
     "signed and dated by the participant.",
 }
@@ -30,6 +42,8 @@ def test_a_stored_citation_resolves_to_its_own_row() -> None:
 def test_an_inline_sub_paragraph_resolves_to_the_row_that_holds_its_marker() -> None:
     assert resolve("21 CFR 56.111(a)(1)(i)", TEXTS) == ("21 CFR 56.111(a)(1)",)
     assert resolve("21 CFR 56.111(a)(1)(ii)", TEXTS) == ("21 CFR 56.111(a)(1)",)
+    assert resolve("21 CFR 58.43(a)(2)", TEXTS) == ("21 CFR 58.43(a)",)
+    assert resolve("21 CFR 58.43(a)(4)", TEXTS) == ("21 CFR 58.43(a)",)
 
 
 def test_a_parent_stored_in_its_first_child_resolves_to_its_children() -> None:
@@ -44,6 +58,13 @@ def test_a_cross_reference_in_an_ancestor_is_not_a_paragraph_marker() -> None:
     assert resolve("21 CFR 312.30(b)", TEXTS) == ("21 CFR 312.30(b)(1)",)
 
 
+def test_an_item_in_a_cross_reference_list_is_not_a_paragraph_marker() -> None:
+    assert resolve("21 CFR 312.110(b)(2)(f)", TEXTS) == ()
+    assert resolve("21 CFR 312.110(b)(2)(g)", TEXTS) == ()
+    assert resolve("21 CFR 312.42(b)(4)(i)(b)", TEXTS) == ()
+    assert resolve("21 CFR 312.8(d)(3)(2)", TEXTS) == ()
+
+
 def test_a_guidance_section_resolves_to_its_numbered_children() -> None:
     assert resolve("ICH E6(R3) 2.8", TEXTS) == ("ICH E6(R3) 2.8.7",)
 
@@ -51,3 +72,8 @@ def test_a_guidance_section_resolves_to_its_numbered_children() -> None:
 def test_a_section_number_prefix_is_not_a_parent() -> None:
     assert resolve("21 CFR 312.3", TEXTS) == ()
     assert resolve("21 CFR 56.111(a)(1)(iii)", TEXTS) == ()
+
+
+def test_a_row_own_marker_is_not_a_sub_paragraph_of_itself() -> None:
+    assert resolve("21 CFR 56.111(a)(1)(1)", TEXTS) == ()
+    assert resolve("21 CFR 58.43(a)(a)", TEXTS) == ()

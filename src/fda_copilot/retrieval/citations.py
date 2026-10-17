@@ -12,6 +12,9 @@ ORDER BY citation, effective_date DESC
 _TRAILING_PARAGRAPH = re.compile(r"\([^()]+\)$")
 _PARAGRAPH = re.compile(r"\([^()]+\)")
 _CHILD_SEPARATORS = ("(", ".", " ")
+_OPENING_RUN = re.compile(
+    r"(?:^|[.:;—]|(?<![)\s,])(?:,|,?\s(?:and|or)))\s*((?:\([^()\s]+\))++)(?!\s*(?:of|through)\b)"
+)
 
 
 def stored_texts(conn: psycopg.Connection) -> dict[str, str]:
@@ -25,7 +28,7 @@ def resolve(citation: str, texts: Mapping[str, str]) -> tuple[str, ...]:
     ancestor = citation
     while match := _TRAILING_PARAGRAPH.search(ancestor):
         ancestor = ancestor[: match.start()]
-        if ancestor in texts and _holds(texts[ancestor], citation[len(ancestor) :]):
+        if ancestor in texts and _holds(texts[ancestor], ancestor, citation[len(ancestor) :]):
             return (ancestor,)
     return tuple(
         sorted(
@@ -37,17 +40,11 @@ def resolve(citation: str, texts: Mapping[str, str]) -> tuple[str, ...]:
     )
 
 
-def _marker(marker: str) -> re.Pattern[str]:
-    return re.compile(
-        rf"(?<![\w)])(?<!paragraph )(?<!paragraphs ){re.escape(marker)}(?!\s*(?:of this|through)\b)"
-    )
+def _opening_markers(text: str) -> list[str]:
+    return [marker for run in _OPENING_RUN.finditer(text) for marker in _PARAGRAPH.findall(run[1])]
 
 
-def _holds(text: str, paragraphs: str) -> bool:
-    position = 0
-    for marker in _PARAGRAPH.findall(paragraphs):
-        found = _marker(marker).search(text, position)
-        if found is None:
-            return False
-        position = found.end()
-    return True
+def _holds(text: str, holder: str, paragraphs: str) -> bool:
+    opening = iter(_opening_markers(text))
+    path = _PARAGRAPH.findall(holder)[-1:] + _PARAGRAPH.findall(paragraphs)
+    return all(marker in opening for marker in path)
