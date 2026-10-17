@@ -22,3 +22,23 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run mypy --strict src
       - run: uv run pytest
+
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgresql://fda:fda@localhost:5432/fda
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --wait db
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run python scripts/corpus_snapshot.py load
+      - run: uv run python evals/retrieval/run.py --retriever keyword --json retrieval-keyword.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrieval-keyword
+          path: retrieval-keyword.json
