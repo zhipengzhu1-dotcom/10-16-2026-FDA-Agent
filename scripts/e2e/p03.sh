@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
+export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-fda-e2e-p03}"
 
 now() { python3 -c 'import time; print(time.time())'; }
 psql_db() { docker compose exec -T db psql -v ON_ERROR_STOP=1 -U fda -d fda -qAt "$@"; }
