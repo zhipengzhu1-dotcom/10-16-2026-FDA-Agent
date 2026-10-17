@@ -1,15 +1,19 @@
 import hashlib
+import os
 from datetime import date
 from pathlib import Path
 
+import psycopg
 import pytest
 import yaml
 from pydantic import ValidationError
 
+from fda_copilot import cli
 from fda_copilot.corpus import ecfr, guidance
 from fda_copilot.corpus.guidance import Kind, Line, Source
 from fda_copilot.domain.models import RegSource
 
+MIGRATION = Path(__file__).parents[2] / "migrations" / "001_reg_sections.sql"
 FIXTURE = (Path(__file__).parent / "fixtures" / "guidance.pdf").read_bytes()
 SOURCE = Source(
     key="fixture",
@@ -167,3 +171,28 @@ def test_fetch_replaces_a_cached_copy_that_no_longer_matches_the_pin(
 
     assert guidance.fetch(SOURCE, tmp_path) == FIXTURE
     assert (tmp_path / "fixture.pdf").read_bytes() == FIXTURE
+
+
+def test_a_wrong_pin_on_the_last_source_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tampered = SOURCE.model_copy(update={"key": "tampered", "sha256": "0" * 64})
+    monkeypatch.setattr(guidance, "load_sources", lambda: [SOURCE, tampered])
+    monkeypatch.setattr(ecfr, "http_get", lambda url: FIXTURE)
+    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
+        conn.execute(MIGRATION.read_text())
+        conn.execute("DELETE FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'")
+
+        with pytest.raises(ValueError, match="tampered: .* but the pin is 0000"):
+            cli.main(["ingest", "guidance", "--pdf-dir", str(tmp_path)])
+        written = conn.execute(
+            "SELECT count(*) FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'"
+        ).fetchone()
+        monkeypatch.setattr(guidance, "load_sources", lambda: [SOURCE])
+        cli.main(["ingest", "guidance", "--pdf-dir", str(tmp_path)])
+        after_a_good_run = conn.execute(
+            "SELECT count(*) FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'"
+        ).fetchone()
+        conn.execute("DELETE FROM reg_sections WHERE citation LIKE 'FDA Test Guidance%'")
+
+    assert (written, after_a_good_run) == ((0,), (7,))

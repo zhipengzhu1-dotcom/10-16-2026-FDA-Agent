@@ -48,13 +48,13 @@ def ingest_cfr(args: argparse.Namespace) -> None:
 
 
 def ingest_guidance(args: argparse.Namespace) -> None:
-    total_rows = total_changed = 0
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        for source in guidance.load_sources():
-            sections = guidance.parse(source, guidance.fetch(source, args.pdf_dir))
-            changed = store.upsert(conn, sections)
-            conn.commit()
-            total_rows += len(sections)
-            total_changed += changed
-            print(f"{source.citation}: {len(sections)} rows, {changed} changed", flush=True)
-    print(f"total: {total_rows} rows, {total_changed} changed")
+    parsed = [
+        (source, guidance.parse(source, guidance.fetch(source, args.pdf_dir)))
+        for source in guidance.load_sources()
+    ]
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.transaction():
+        changes = [(source, sections, store.upsert(conn, sections)) for source, sections in parsed]
+    for source, sections, changed in changes:
+        print(f"{source.citation}: {len(sections)} rows, {changed} changed")
+    rows = sum(len(sections) for _, sections, _ in changes)
+    print(f"total: {rows} rows, {sum(changed for _, _, changed in changes)} changed")
