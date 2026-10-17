@@ -1,4 +1,5 @@
 import gzip
+import http.client
 import json
 import re
 import time
@@ -18,6 +19,7 @@ PARTS = (50, 56, 58, 312, 812)
 
 API = "https://www.ecfr.gov/api/versioner/v1"
 _ATTEMPTS = 5
+_TRANSIENT = (urllib.error.URLError, http.client.HTTPException, ConnectionError, TimeoutError)
 
 
 class Kind(StrEnum):
@@ -38,8 +40,8 @@ class _Token(NamedTuple):
     label: str
 
 
-_LEAD = re.compile(r"\((?:<I>)?([0-9]{1,3}|[a-z]{1,5}|[A-Z]{1,3})(</I>)?\)")
-_HEADING = re.compile(r"\s*<I>[^<]*(?:\.</I>\s*|</I>\u2014)")
+_LEAD = re.compile(r"\(([0-9]{1,3}|[a-z]{1,5}|[A-Z]{1,3})\)")
+_HEADING = re.compile(r"\s*([^\u2014]+?)(?:\.\s*|\u2014)(?=\()")
 _ROMAN = {
     "x" * tens + ones: tens * 10 + value
     for tens in range(4)
@@ -50,19 +52,22 @@ _ROMAN = {
 def _get(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
     for attempt in range(_ATTEMPTS):
+        delay = float(2**attempt)
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
                 body: bytes = response.read()
-                if response.headers.get("Content-Encoding") == "gzip":
-                    return gzip.decompress(body)
-                return body
+                gzipped = response.headers.get("Content-Encoding") == "gzip"
+            return gzip.decompress(body) if gzipped else body
         except urllib.error.HTTPError as error:
-            if error.code < 500 or attempt == _ATTEMPTS - 1:
+            if (error.code != 429 and error.code < 500) or attempt == _ATTEMPTS - 1:
                 raise
-        except (urllib.error.URLError, TimeoutError):
+            retry_after = error.headers.get("Retry-After", "")
+            if retry_after.isdigit():
+                delay = float(retry_after)
+        except _TRANSIENT:
             if attempt == _ATTEMPTS - 1:
                 raise
-        time.sleep(2**attempt)
+        time.sleep(delay)
     raise AssertionError("unreachable")
 
 
@@ -131,17 +136,22 @@ def _text(element: ET.Element | None) -> str:
 
 
 def _lead_tokens(paragraph: ET.Element) -> list[_Token]:
-    head = (paragraph.text or "") + "".join(
-        (f"<I>{child.text or ''}</I>" if child.tag == "I" else "".join(child.itertext()))
-        + (child.tail or "")
-        for child in paragraph
-    )
+    runs = [(paragraph.text or "", False)]
+    for child in paragraph:
+        runs += [("".join(child.itertext()), child.tag == "I"), (child.tail or "", False)]
+    head = "".join(text for text, _ in runs)
+    italic = [flag for text, flag in runs for _ in text]
     tokens = []
     position = 0
     while match := _LEAD.match(head, position):
-        tokens.append(_Token(italic=match.group(2) is not None, label=match.group(1)))
+        tokens.append(_Token(italic=italic[match.start(1)], label=match.group(1)))
         position = match.end()
-        if (heading := _HEADING.match(head, position)) and _LEAD.match(head, heading.end()):
+        heading = _HEADING.match(head, position)
+        if (
+            heading
+            and all(italic[heading.start(1) : heading.end(1)])
+            and _LEAD.match(head, heading.end())
+        ):
             position = heading.end()
     return tokens
 

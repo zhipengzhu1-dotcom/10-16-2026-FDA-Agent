@@ -92,6 +92,22 @@ def test_italic_markers_nest_below_roman() -> None:
     ]
 
 
+def test_marker_inside_an_italic_heading_opens_its_own_paragraph() -> None:
+    citations = parse_xml(
+        "<P>(a) A.</P><P>(8) Eight.</P><P>(i) One.</P>"
+        "<P>(ii) <I>Toxicology. (a</I>) An integrated summary of the toxicological effects.</P>"
+        "<P>(<I>b</I>) For each toxicology study.</P>"
+    )
+
+    assert citations == [
+        "21 CFR 1.1(a)",
+        "21 CFR 1.1(a)(8)",
+        "21 CFR 1.1(a)(8)(i)",
+        "21 CFR 1.1(a)(8)(ii)(a)",
+        "21 CFR 1.1(a)(8)(ii)(b)",
+    ]
+
+
 @pytest.fixture
 def conn() -> Iterator[psycopg.Connection]:
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
