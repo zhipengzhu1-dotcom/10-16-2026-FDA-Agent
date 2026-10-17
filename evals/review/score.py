@@ -1,10 +1,14 @@
 """Score a reviewer's findings against the planted-violation gold set.
 
+A reviewer returns one Review per protocol: its findings, plus the map from each
+doc_section_id it uses to that section's heading text. Section ids are the reviewer's own
+(for example sec-4), so the scorer matches on the heading an id maps to.
+
 Matching rule. A finding matches a gold row when all three hold:
   1. the finding was returned for the gold row's protocol,
   2. the finding's domain equals the row's domain, and
-  3. the finding's doc_section_id equals the row's section heading, ignoring case and
-     runs of whitespace.
+  3. the heading its doc_section_id maps to equals the row's section heading, ignoring
+     case and runs of whitespace. An id missing from the map matches nothing.
 Each gold row matches at most one finding. The first finding in reviewer order wins, and
 later findings on the same row are false positives. The citation is not part of the match,
 so a finding in the right section with the wrong citation counts toward recall and
@@ -20,22 +24,32 @@ Metrics, rounded to four places:
 Only the primary citation counts, and every quote must be a real passage of the text it
 cites, so a finding that cites every regulation with a one-word quote scores nothing.
 Precision, citation accuracy, and faithfulness are None when there are no findings.
+
+Regulation text comes from a lookup, citation -> text, or None when the store has no such
+citation. A quote under an unknown citation is not faithful, and the report counts those
+citations as unknown_citations and lists them per finding. The default lookup reads
+regtext.json, which check_citations.py fetched for the gold citations only. P09 must pass
+a lookup over the stored RegSection rows instead, so that faithfulness checks the same
+text the verifier and the user see.
 """
 
 import argparse
 import json
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
+from functools import cache
 from pathlib import Path
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from fda_copilot.domain.models import Domain, Finding, RegCitation
+from fda_copilot.domain.models import DocSectionId, Domain, Finding, RegCitation
 
 HERE = Path(__file__).parent
 MIN_QUOTE_WORDS = 5
+
+Lookup = Callable[[str], str | None]
 
 
 class _Frozen(BaseModel):
@@ -52,9 +66,18 @@ class GoldViolation(_Frozen):
     held_out: bool
 
 
-class FalsePositive(_Frozen):
+class Review(_Frozen):
+    headings: dict[DocSectionId, str]
+    findings: tuple[Finding, ...]
+
+
+class ScoredFinding(_Frozen):
     protocol: str
     finding: Finding
+    heading: str | None
+    gold: GoldViolation | None
+    faithful: bool
+    unknown_citations: tuple[RegCitation, ...]
 
 
 class Report(_Frozen):
@@ -64,17 +87,22 @@ class Report(_Frozen):
     precision: float | None
     citation_accuracy: float | None
     faithfulness: float | None
+    unknown_citations: int
     missed: tuple[GoldViolation, ...]
-    false_positives: tuple[FalsePositive, ...]
+    scored: tuple[ScoredFinding, ...]
+
+    @property
+    def false_positives(self) -> tuple[ScoredFinding, ...]:
+        return tuple(s for s in self.scored if s.gold is None)
 
 
 class Reviewer(Protocol):
-    def review(self, document: Path, domain: Domain) -> list[Finding]: ...
+    def review(self, document: Path, domain: Domain) -> Review: ...
 
 
 class NullReviewer:
-    def review(self, document: Path, domain: Domain) -> list[Finding]:
-        return []
+    def review(self, document: Path, domain: Domain) -> Review:
+        return Review(headings={}, findings=())
 
 
 REVIEWERS: dict[str, type[Reviewer]] = {"null": NullReviewer}
@@ -98,50 +126,70 @@ def _ratio(numerator: int, denominator: int) -> float | None:
     return round(numerator / denominator, 4) if denominator else None
 
 
+def load_regtext() -> dict[str, str]:
+    data: dict[str, str] = json.loads((HERE / "regtext.json").read_text())
+    return data
+
+
+@cache
+def _regtext_by_citation() -> dict[str, str]:
+    return {_squash(citation): text for citation, text in load_regtext().items()}
+
+
+def regtext(citation: str) -> str | None:
+    return _regtext_by_citation().get(_squash(citation))
+
+
 def score(
     gold: Sequence[GoldViolation],
-    findings: Mapping[str, Sequence[Finding]],
-    regtext: Mapping[str, str],
+    reviews: Mapping[str, Review],
+    lookup: Lookup = regtext,
 ) -> Report:
     open_rows = {_section_key(row.protocol, row.section): row for row in gold}
     if len(open_rows) != len(gold):
         raise ValueError("two gold rows share a protocol section")
-    stored = {_squash(citation): _squash(text) for citation, text in regtext.items()}
 
-    hits: list[tuple[Finding, GoldViolation]] = []
-    false_positives: list[FalsePositive] = []
-    for protocol, batch in findings.items():
-        for finding in batch:
-            key = _section_key(protocol, finding.doc_section_id)
-            row = open_rows.get(key)
-            if row is not None and row.domain is finding.domain:
-                del open_rows[key]
-                hits.append((finding, row))
-            else:
-                false_positives.append(FalsePositive(protocol=protocol, finding=finding))
+    scored: list[ScoredFinding] = []
+    for protocol, review in reviews.items():
+        for finding in review.findings:
+            heading = review.headings.get(finding.doc_section_id)
+            row = None
+            if heading is not None:
+                key = _section_key(protocol, heading)
+                if key in open_rows and open_rows[key].domain is finding.domain:
+                    row = open_rows.pop(key)
+            texts = [(c, lookup(c.citation)) for c in finding.citations]
+            scored.append(
+                ScoredFinding(
+                    protocol=protocol,
+                    finding=finding,
+                    heading=heading,
+                    gold=row,
+                    faithful=all(
+                        text is not None
+                        and len(c.quote.split()) >= MIN_QUOTE_WORDS
+                        and _squash(c.quote) in _squash(text)
+                        for c, text in texts
+                    ),
+                    unknown_citations=tuple(c.citation for c, text in texts if text is None),
+                )
+            )
 
-    every = [finding for batch in findings.values() for finding in batch]
+    hits = [(s.finding, s.gold) for s in scored if s.gold is not None]
     cited = sum(
         _squash(finding.citations[0].citation) == _squash(row.citation) for finding, row in hits
-    )
-    faithful = sum(
-        all(
-            len(c.quote.split()) >= MIN_QUOTE_WORDS
-            and _squash(c.quote) in stored.get(_squash(c.citation), "")
-            for c in finding.citations
-        )
-        for finding in every
     )
     remaining = set(open_rows.values())
     return Report(
         planted=len(gold),
-        findings=len(every),
+        findings=len(scored),
         recall=_ratio(len(hits), len(gold)) or 0.0,
-        precision=_ratio(len(hits), len(every)),
-        citation_accuracy=_ratio(cited, len(every)),
-        faithfulness=_ratio(faithful, len(every)),
+        precision=_ratio(len(hits), len(scored)),
+        citation_accuracy=_ratio(cited, len(scored)),
+        faithfulness=_ratio(sum(s.faithful for s in scored), len(scored)),
+        unknown_citations=sum(len(s.unknown_citations) for s in scored),
         missed=tuple(row for row in gold if row in remaining),
-        false_positives=tuple(false_positives),
+        scored=tuple(scored),
     )
 
 
@@ -159,12 +207,7 @@ def load_gold(split: Split = Split.all, domain: Domain | None = None) -> list[Go
     ]
 
 
-def load_regtext() -> dict[str, str]:
-    data: dict[str, str] = json.loads((HERE / "regtext.json").read_text())
-    return data
-
-
-def review_all(reviewer: Reviewer, gold: Sequence[GoldViolation]) -> dict[str, list[Finding]]:
+def review_all(reviewer: Reviewer, gold: Sequence[GoldViolation]) -> dict[str, Review]:
     protocols = {row.protocol: row.domain for row in gold}
     return {
         protocol: reviewer.review(HERE / "protocols" / f"{protocol}.docx", domain)
@@ -185,21 +228,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     gold = load_gold(args.split, args.domain)
-    findings = review_all(REVIEWERS[args.reviewer](), gold)
-    report = score(gold, findings, load_regtext())
+    reviews = review_all(REVIEWERS[args.reviewer](), gold)
+    report = score(gold, reviews)
 
     print(
-        f"reviewer {args.reviewer}  split {args.split}  protocols {len(findings)}  "
+        f"reviewer {args.reviewer}  split {args.split}  protocols {len(reviews)}  "
         f"planted {report.planted}  findings {report.findings}"
     )
     print(f"recall {_fmt(report.recall)}")
     print(f"precision {_fmt(report.precision)}")
     print(f"citation accuracy {_fmt(report.citation_accuracy)}")
     print(f"faithfulness {_fmt(report.faithfulness)}")
+    print(f"unknown citations {report.unknown_citations}")
     for row in report.missed:
         print(f"MISSED {row.protocol} | {row.section} | {row.citation}")
     for fp in report.false_positives:
-        print(f"FALSE POSITIVE {fp.protocol} | {fp.finding.doc_section_id}")
+        print(f"FALSE POSITIVE {fp.protocol} | {fp.finding.doc_section_id} | {fp.heading}")
+    for s in report.scored:
+        for citation in s.unknown_citations:
+            print(f"UNKNOWN CITATION {s.protocol} | {s.finding.doc_section_id} | {citation}")
 
     if args.out:
         payload = {

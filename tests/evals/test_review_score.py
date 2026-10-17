@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from fda_copilot.domain.models import Domain, Finding
 
@@ -19,6 +20,14 @@ REGTEXT = {
     "participate will involve no penalty or loss of benefits to which the subject is otherwise "
     "entitled",
 }
+HEADINGS = {
+    "sec-1": "Confidentiality",
+    "sec-2": "Voluntary Participation",
+    "sec-3": "Research-Related Injury",
+    "sec-4": "Benefits",
+}
+INSPECT = "the Food and Drug Administration may inspect the records"
+VOLUNTARY = "statement that participation is voluntary"
 
 
 def gold_row(section: str, citation: str) -> object:
@@ -40,30 +49,30 @@ GOLD = [
 ]
 
 
-def finding(section: str, citation: str, quote: str, domain: str = "GCP") -> Finding:
+def finding(section_id: str, *citations: tuple[str, str], domain: str = "GCP") -> Finding:
     return Finding.model_validate(
         {
-            "doc_section_id": section,
+            "doc_section_id": section_id,
             "domain": domain,
             "severity": "major",
             "issue": "missing consent element",
-            "citations": [{"citation": citation, "quote": quote}],
+            "citations": [{"citation": c, "quote": q} for c, q in citations],
             "proposed_fix": "add the element",
         }
     )
 
 
-def test_two_findings_against_three_gold_rows() -> None:
-    findings = [
-        finding(
-            "Confidentiality",
-            "21 CFR 50.25(a)(5)",
-            "the Food and Drug Administration may inspect the records",
-        ),
-        finding("Voluntary Participation", "21 CFR 50.25(a)(5)", "FDA may look at your records"),
-    ]
+def review(*findings: Finding, headings: dict[str, str] = HEADINGS) -> Any:
+    return score.Review(headings=headings, findings=findings)
 
-    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT)
+
+def test_two_findings_against_three_gold_rows() -> None:
+    findings = review(
+        finding("sec-1", ("21 CFR 50.25(a)(5)", INSPECT)),
+        finding("sec-2", ("21 CFR 50.25(a)(5)", "FDA may look at your records")),
+    )
+
+    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT.get)
 
     assert report.recall == 0.6667
     assert report.precision == 1.0
@@ -74,41 +83,84 @@ def test_two_findings_against_three_gold_rows() -> None:
 
 
 def test_section_match_ignores_case_and_spacing_but_not_domain_or_duplicates() -> None:
-    findings = [
-        finding("  confidentiality ", "21 CFR 50.25(a)(5)", "may inspect the records"),
-        finding("Confidentiality", "21 CFR 50.25(a)(5)", "may inspect the records"),
-        finding(
-            "Voluntary Participation", "21 CFR 50.25(a)(8)", "participation is voluntary", "IND"
-        ),
-        finding("Benefits", "21 CFR 50.25(a)(3)", "benefits"),
-    ]
+    headings = {
+        "a": "  confidentiality ",
+        "b": "Confidentiality",
+        "c": "Voluntary  Participation",
+        "d": "Benefits",
+    }
+    findings = review(
+        finding("a", ("21 CFR 50.25(a)(5)", INSPECT)),
+        finding("b", ("21 CFR 50.25(a)(5)", INSPECT)),
+        finding("c", ("21 CFR 50.25(a)(8)", VOLUNTARY), domain="IND"),
+        finding("d", ("21 CFR 50.25(a)(3)", "benefits to the subject or to others")),
+        headings=headings,
+    )
 
-    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT)
+    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT.get)
 
     assert report.recall == 0.3333
     assert report.precision == 0.25
     assert report.citation_accuracy == 0.25
     assert [(fp.finding.doc_section_id, fp.finding.domain) for fp in report.false_positives] == [
-        ("Confidentiality", Domain.GCP),
-        ("Voluntary Participation", Domain.IND),
-        ("Benefits", Domain.GCP),
+        ("b", Domain.GCP),
+        ("c", Domain.IND),
+        ("d", Domain.GCP),
+    ]
+
+
+def test_findings_match_on_the_heading_their_section_id_maps_to() -> None:
+    findings = review(
+        finding("sec-2", ("21 CFR 50.25(a)(8)", VOLUNTARY)),
+        finding("Confidentiality", ("21 CFR 50.25(a)(5)", INSPECT)),
+        finding("sec-9", ("21 CFR 50.25(a)(5)", INSPECT)),
+    )
+
+    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT.get)
+
+    assert (report.recall, report.precision, report.citation_accuracy) == (0.3333, 0.3333, 0.3333)
+    assert [(s.finding.doc_section_id, s.heading, s.gold is not None) for s in report.scored] == [
+        ("sec-2", "Voluntary Participation", True),
+        ("Confidentiality", None, False),
+        ("sec-9", None, False),
     ]
 
 
 def test_findings_for_another_protocol_do_not_match() -> None:
-    stray = finding("Confidentiality", "21 CFR 50.25(a)(5)", "may inspect the records")
+    stray = review(finding("sec-1", ("21 CFR 50.25(a)(5)", INSPECT)))
 
-    report = score.score(GOLD, {"gcp-y": [stray]}, REGTEXT)
+    report = score.score(GOLD, {"gcp-y": stray}, REGTEXT.get)
 
     assert (report.recall, report.precision) == (0.0, 0.0)
     assert [fp.protocol for fp in report.false_positives] == ["gcp-y"]
 
 
+def test_quotes_under_citations_missing_from_the_text_store_are_reported() -> None:
+    benefits = "21 CFR 50.25(a)(3)"
+    findings = review(
+        finding("sec-1", ("21 CFR 50.25(a)(5)", INSPECT)),
+        finding("sec-4", (benefits, "benefits to the subject or to others"), ("21 CFR 9", "x")),
+    )
+    store = {
+        **REGTEXT,
+        benefits: "(3) A description of any benefits to the subject or to others which may "
+        "reasonably be expected from the research.",
+    }
+
+    with_regtext = score.score(GOLD, {"gcp-x": findings}, REGTEXT.get)
+    with_store = score.score(GOLD, {"gcp-x": findings}, store.get)
+
+    assert (with_regtext.faithfulness, with_regtext.unknown_citations) == (0.5, 2)
+    assert [s.unknown_citations for s in with_regtext.scored] == [(), (benefits, "21 CFR 9")]
+    assert (with_store.faithfulness, with_store.unknown_citations) == (0.5, 1)
+    assert [s.unknown_citations for s in with_store.scored] == [(), ("21 CFR 9",)]
+
+
 def test_null_reviewer_misses_every_planted_violation() -> None:
     gold = score.load_gold()
-    findings = score.review_all(score.NullReviewer(), gold)
+    reviews = score.review_all(score.NullReviewer(), gold)
 
-    report = score.score(gold, findings, score.load_regtext())
+    report = score.score(gold, reviews)
 
     assert report.recall == 0.0
     assert (report.precision, report.citation_accuracy, report.faithfulness) == (None, None, None)
@@ -144,6 +196,7 @@ def test_cli_prints_recall_and_writes_report(tmp_path: Path) -> None:
     )
 
     assert "recall 0.00" in run.stdout.splitlines()
+    assert "unknown citations 0" in run.stdout.splitlines()
     assert "MISSED glp-01 | Quality Assurance | 21 CFR 58.35(a)" in run.stdout.splitlines()
     saved = json.loads(out.read_text())
     assert (saved["recall"], saved["planted"], saved["findings"]) == (0.0, 10, 0)
@@ -155,52 +208,35 @@ def test_committed_protocols_and_gold_match_their_source() -> None:
 
 def test_citing_every_stored_regulation_with_a_one_word_quote_does_not_score() -> None:
     gold = score.load_gold()
-    regtext = score.load_regtext()
-    shotgun = [{"citation": citation, "quote": "the"} for citation in regtext]
+    shotgun = [(citation, "the") for citation in score.load_regtext()]
+    sections: dict[str, dict[str, str]] = {}
     findings: dict[str, list[Finding]] = {}
     for row in gold:
+        section_id = f"sec-{len(sections.setdefault(row.protocol, {})) + 1}"
+        sections[row.protocol][section_id] = row.section
         findings.setdefault(row.protocol, []).append(
-            Finding.model_validate(
-                {
-                    "doc_section_id": row.section,
-                    "domain": row.domain,
-                    "severity": "major",
-                    "issue": "something is wrong",
-                    "citations": shotgun,
-                    "proposed_fix": "fix it",
-                }
-            )
+            finding(section_id, *shotgun, domain=row.domain)
         )
+    reviews = {p: review(*findings[p], headings=sections[p]) for p in findings}
 
-    report = score.score(gold, findings, regtext)
+    report = score.score(gold, reviews)
 
     assert (report.recall, report.precision) == (1.0, 1.0)
     assert report.citation_accuracy == 0.0217
     assert report.faithfulness == 0.0
+    assert report.unknown_citations == 0
 
 
 def test_a_quote_counts_only_with_five_words_from_its_own_citation() -> None:
     confidentiality = "21 CFR 50.25(a)(5)"
-    findings = [
-        finding("Confidentiality", confidentiality, "Food and Drug Administration may inspect"),
-        finding("Confidentiality", confidentiality, "Drug Administration may inspect"),
-        finding("Confidentiality", confidentiality, "refusal to participate will involve no"),
-        Finding.model_validate(
-            {
-                "doc_section_id": "Voluntary Participation",
-                "domain": "GCP",
-                "severity": "major",
-                "issue": "penalty for leaving",
-                "citations": [
-                    {"citation": "21 CFR 50.25(a)(8)", "quote": "statement that participation is voluntary"},
-                    {"citation": confidentiality, "quote": "inspect"},
-                ],
-                "proposed_fix": "remove the penalty",
-            }
-        ),
-    ]
+    findings = review(
+        finding("sec-1", (confidentiality, "Food and Drug Administration may inspect")),
+        finding("sec-1", (confidentiality, "Drug Administration may inspect")),
+        finding("sec-1", (confidentiality, "refusal to participate will involve no")),
+        finding("sec-2", ("21 CFR 50.25(a)(8)", VOLUNTARY), (confidentiality, "inspect")),
+    )
 
-    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT)
+    report = score.score(GOLD, {"gcp-x": findings}, REGTEXT.get)
 
     assert report.faithfulness == 0.25
     assert report.citation_accuracy == 0.5
