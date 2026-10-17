@@ -1,8 +1,7 @@
 """Score a reviewer's findings against the planted-violation gold set.
 
 A reviewer returns one Review per protocol: its findings, plus the map from each
-doc_section_id it uses to that section's heading text. Section ids are the reviewer's own
-(for example sec-4), so the scorer matches on the heading an id maps to.
+doc_section_id it uses to that section's heading text.
 
 Matching rule. A finding matches a gold row when all three hold:
   1. the finding was returned for the gold row's protocol,
@@ -10,9 +9,7 @@ Matching rule. A finding matches a gold row when all three hold:
   3. the heading its doc_section_id maps to equals the row's section heading, ignoring
      case and runs of whitespace. An id missing from the map matches nothing.
 Each gold row matches at most one finding. The first finding in reviewer order wins, and
-later findings on the same row are false positives. The citation is not part of the match,
-so a finding in the right section with the wrong citation counts toward recall and
-precision but not citation accuracy.
+later findings on the same row are false positives. The citation is not part of the match.
 
 Metrics, rounded to four places:
   recall             matched gold rows / gold rows
@@ -21,8 +18,6 @@ Metrics, rounded to four places:
                      citation / findings
   faithfulness       findings whose every quote has at least 5 words and occurs in the
                      stored text of its own citation (whitespace-normalized) / findings
-Only the primary citation counts, and every quote must be a real passage of the text it
-cites, so a finding that cites every regulation with a one-word quote scores nothing.
 Precision, citation accuracy, and faithfulness are None when there are no findings.
 
 Regulation text comes from a lookup, citation -> text, or None when the store has no such

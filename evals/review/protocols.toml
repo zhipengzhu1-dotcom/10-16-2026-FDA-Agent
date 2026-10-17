@@ -15,13 +15,15 @@ Secondary objectives are to describe the safety and tolerability of ABC-123 and 
 [[protocol.section]]
 heading = "Investigators"
 text = """
-The coordinating investigator is Dr. Helen Park, Department of Dermatology, Lakeside University Hospital, 1200 Lake Drive, Madison, WI 53706. Each participating investigator signs Form FDA 1572 and provides a current curriculum vitae before site activation. The sponsor keeps a list of all investigators and subinvestigators in the trial master file.
+The coordinating investigator is Dr. Helen Park, Department of Dermatology, Lakeside University Hospital, 1200 Lake Drive, Madison, WI 53706. Each participating investigator signs Form FDA 1572 and provides a current curriculum vitae before site activation.
+
+Appendix 1 lists the name and address of each investigator, the name of each subinvestigator, and the name and address of each research facility. The reviewing IRB for all sites is Lakeside Central IRB, 400 Main Street, Madison, WI 53703.
 """
 
 [[protocol.section]]
 heading = "Patient Selection"
 text = """
-Adults aged 18 to 70 years with plaque psoriasis covering at least 10 percent of body surface area and a PASI score of 12 or higher are eligible. Patients with active infection, a history of malignancy within five years, or use of a biologic therapy within 12 weeks are excluded.
+Adults aged 18 to 70 years with plaque psoriasis covering at least 10 percent of body surface area and a PASI score of 12 or higher are eligible. Patients with active infection, a history of malignancy within five years, use of a biologic therapy within 12 weeks, pregnancy or breastfeeding, or unwillingness to use effective contraception are excluded.
 
 The study will enroll approximately 240 patients at 30 sites.
 """
@@ -39,11 +41,25 @@ Doses were chosen from the Phase 1 multiple-ascending-dose study, in which expos
 """
 
 [[protocol.section]]
+heading = "Assessments"
+text = """
+PASI is scored at screening and at Weeks 0, 4, 8, 12, and 16 by an assessor who does not know the patient's treatment. Plasma ABC-123 concentrations are measured before dosing at Weeks 4, 8, and 16.
+"""
+
+[[protocol.section]]
+heading = "Safety Monitoring"
+text = """
+Vital signs, a physical examination, hematology, serum chemistry, liver function tests, and urinalysis are done at screening and at every visit. Study drug is stopped in any patient whose ALT or AST exceeds three times the upper limit of normal or who develops a serious infection.
+"""
+
+[[protocol.section]]
 heading = "Safety Reporting"
 text = """
 The sponsor's pharmacovigilance group reviews every serious adverse event within one business day of receipt.
 
 Serious and unexpected suspected adverse reactions are reported to FDA and all participating investigators in an IND safety report within 30 calendar days after the sponsor determines that the information qualifies for reporting. Other safety findings are summarized in the IND annual report.
+
+Unexpected fatal or life-threatening suspected adverse reactions are also reported to FDA as soon as possible, and no later than 7 calendar days after the sponsor's initial receipt of the information.
 """
 
 [protocol.section.violation]
@@ -83,6 +99,26 @@ title = "Protocol XYZ-9-101: A Phase 1 First-in-Human Single and Multiple Ascend
 heading = "Study Overview"
 text = """
 This is a single-site, randomized, double-blind, placebo-controlled study of XYZ-9 in 64 healthy adults. Part A tests single ascending doses in five cohorts. Part B tests 14 days of once-daily dosing in three cohorts.
+
+The objective is to assess the safety, tolerability, and pharmacokinetics of single and multiple oral doses of XYZ-9.
+"""
+
+[[protocol.section]]
+heading = "Investigator and Facilities"
+text = """
+The investigator is Dr. Samuel Reyes, Harborview Clinical Pharmacology Unit, 88 Pier Street, Baltimore, MD 21202, whose curriculum vitae is in Appendix 1. Subinvestigators are Dr. Ana Costa and Dr. Mark Liu. The study is conducted at the Harborview unit and reviewed by Chesapeake IRB, 15 Bay Road, Annapolis, MD 21401.
+"""
+
+[[protocol.section]]
+heading = "Subject Selection"
+text = """
+Healthy men and women aged 18 to 55 years with a body mass index of 18 to 30 kg/m2 are eligible. Subjects are excluded for any clinically significant disease, an abnormal ECG or QTcF above 450 ms, abnormal liver or kidney function, pregnancy or breastfeeding, or use of any medication within 14 days.
+"""
+
+[[protocol.section]]
+heading = "Dose Selection"
+text = """
+The starting single dose of 10 mg is one tenth of the human equivalent of the no-observed-adverse-effect level in the 28-day rat toxicity study. The planned maximum single dose is 400 mg, and the planned maximum multiple dose is 200 mg once daily for 14 days, which is the longest exposure of any subject.
 """
 
 [[protocol.section]]
@@ -141,6 +177,12 @@ text = """
 Blood samples for plasma XYZ-9 concentrations are drawn before dosing and at 0.5, 1, 2, 4, 8, 12, 24, and 48 hours after dosing. Samples are analyzed with a validated LC-MS/MS method.
 """
 
+[[protocol.section]]
+heading = "Safety Monitoring"
+text = """
+Subjects stay in the unit for 72 hours after each single dose and through Day 16 in Part B. Vital signs and 12-lead ECGs are recorded before dosing and at 1, 2, 4, 8, 24, and 48 hours after dosing, with continuous telemetry for the first 24 hours. Hematology, serum chemistry, and urinalysis are done at screening, on Days 2 and 7, and at follow-up. Dosing stops if two subjects in a cohort have the same severe adverse event or if any subject has a serious adverse event related to XYZ-9.
+"""
+
 [[protocol]]
 id = "ind-03"
 domain = "IND"
@@ -151,6 +193,18 @@ title = "Protocol DEF-5-301: A Phase 3 Randomized, Placebo-Controlled Trial of D
 heading = "Objectives"
 text = """
 The primary objective is to show that DEF-5 40 mg once daily lowers mean seated systolic blood pressure more than placebo after 12 weeks. The secondary objective is to assess safety over 52 weeks of open-label extension.
+"""
+
+[[protocol.section]]
+heading = "Sites and Review Boards"
+text = """
+Appendix 1 lists the name and address of each investigator and of each research facility, and the names of the subinvestigators at each site. Every site is reviewed by Central Medical IRB, 2100 Oak Avenue, Columbus, OH 43215.
+"""
+
+[[protocol.section]]
+heading = "Patient Selection"
+text = """
+Adults aged 30 to 80 years with a mean seated systolic blood pressure of 160 to 179 mmHg after a two-week washout are eligible. Patients are excluded for secondary hypertension, a myocardial infarction or stroke within six months, an eGFR below 30 mL/min/1.73 m2, or pregnancy.
 """
 
 [[protocol.section]]
@@ -168,18 +222,32 @@ issue = "Investigators begin participation without a signed Form FDA-1572."
 heading = "Study Design"
 text = """
 Eligible patients are randomized 1:1 to DEF-5 or placebo for 12 weeks, stratified by age group and diabetes status. Rescue medication is allowed if seated systolic pressure exceeds 180 mmHg. About 900 patients will be enrolled at 110 sites.
+
+Tablets are identical in appearance, and patients, investigators, and the sponsor's analysts remain blinded to treatment until the 12-week database lock.
+"""
+
+[[protocol.section]]
+heading = "Dose Selection"
+text = """
+The 40 mg dose gave the best balance of blood pressure reduction and tolerability among the 10, 20, 40, and 80 mg doses in the Phase 2 dose-ranging study. The planned maximum dose is 40 mg once daily. Individual exposure lasts up to 64 weeks, 12 blinded and 52 open-label.
+"""
+
+[[protocol.section]]
+heading = "Assessments and Safety Monitoring"
+text = """
+Seated blood pressure is measured in triplicate with a validated automated device at every visit, and 24-hour ambulatory blood pressure is recorded at baseline and Week 12. Serum potassium, creatinine, and liver function tests are measured at Weeks 2, 6, and 12 and every 3 months in the extension. Study drug is stopped in any patient with serum potassium above 6.0 mmol/L, symptomatic hypotension, or a 50 percent rise in creatinine.
 """
 
 [[protocol.section]]
 heading = "Investigational Product Accountability"
 text = """
-Study drug is dispensed from site stock at each visit. Sites do not record the quantities dispensed to or returned by each patient, and unused drug may be discarded locally at the end of the study.
+Study drug is dispensed from site stock at each visit. Sites do not record the quantities dispensed to or returned by each patient. Unused drug is returned to the sponsor at the end of the study.
 """
 
 [protocol.section.violation]
 citation = "21 CFR 312.62(a)"
 quote = "An investigator is required to maintain adequate records of the disposition of the drug, including dates, quantity, and use by subjects."
-issue = "No drug disposition records are kept, and unused drug is discarded locally."
+issue = "No records are kept of the drug dispensed to or returned by each patient."
 
 [[protocol.section]]
 heading = "Case Report Forms"
@@ -218,13 +286,35 @@ title = "Investigational Plan CT-200: Pivotal Study of the CardioTrace Implantab
 [[protocol.section]]
 heading = "Purpose"
 text = """
-CardioTrace is a subcutaneous implantable cardiac monitor intended to detect atrial fibrillation in patients with cryptogenic stroke. The study objective is to show an atrial fibrillation detection rate of at least 12 percent at 12 months. The investigation lasts 24 months. The sponsor has determined that CardioTrace is a significant risk device and has an approved IDE.
+CardioTrace is a subcutaneous implantable cardiac monitor intended to detect atrial fibrillation in patients with cryptogenic stroke. The study objective is to show that the 12-month atrial fibrillation detection rate exceeds 7 percent. The investigation lasts 24 months. The sponsor has determined that CardioTrace is a significant risk device and has an approved IDE.
+"""
+
+[[protocol.section]]
+heading = "Protocol"
+text = """
+This is a single-arm study. Each subject receives CardioTrace within 90 days after the index stroke, and an independent core laboratory adjudicates every detected episode of atrial fibrillation lasting 2 minutes or longer. Assuming a true 12-month detection rate of 12 percent, a sample of 400 subjects gives 90 percent power to show that the rate exceeds 7 percent, the rate seen with external monitoring, at a one-sided alpha of 0.025.
+"""
+
+[[protocol.section]]
+heading = "Risk Analysis"
+text = """
+Risks include infection at the insertion site, device migration, and skin erosion. Each is minimized by sterile technique, a standardized pocket depth, and follow-up visits at 7 days, 3 months, and 12 months.
+
+The investigation is justified because undetected atrial fibrillation after cryptogenic stroke leaves patients without anticoagulation that can prevent a second stroke. The study enrolls 400 men and women aged 40 to 85 years who had a cryptogenic ischemic stroke within the past 90 days.
 """
 
 [[protocol.section]]
 heading = "Device Description"
 text = """
 The device is a 1.2 cc titanium housing with two sensing electrodes, a lithium battery, and a Bluetooth transmitter. It is inserted through a 10 mm incision under local anesthesia.
+
+The electrodes record a single-lead subcutaneous ECG, and an onboard algorithm flags irregular R-R intervals as possible atrial fibrillation and transmits the recordings to the clinic each night. No change to the device is planned during the investigation.
+"""
+
+[[protocol.section]]
+heading = "Monitoring"
+text = """
+Monitors follow the sponsor's written monitoring procedures, SOP CT-MON-01, and visit each site after its first subject and then every 3 months to verify source data and device accountability. The lead monitor is Karen Wu, CardioTrace Inc., 900 Innovation Way, Minneapolis, MN 55413. Appendix E lists the name and address of every monitor.
 """
 
 [[protocol.section]]
@@ -239,9 +329,21 @@ quote = "CAUTION—Investigational device. Limited by Federal (or United States)
 issue = "The label says \"For Research Use Only\" instead of the required investigational device caution statement."
 
 [[protocol.section]]
-heading = "Risk Analysis"
+heading = "Informed Consent Materials"
 text = """
-Risks include infection at the insertion site, device migration, and skin erosion. Each is minimized by sterile technique, a standardized pocket depth, and follow-up visits at 7 days, 3 months, and 12 months.
+Appendix C contains the consent form and the patient information booklet that subjects receive before they agree to take part.
+"""
+
+[[protocol.section]]
+heading = "IRB Information"
+text = """
+Appendix D lists the name, location, and chairperson of every IRB that has reviewed or will review the investigation, with a copy of each IRB's approval letter.
+"""
+
+[[protocol.section]]
+heading = "Other Institutions"
+text = """
+ECG adjudication is done at Heartline Core Laboratory, 30 Elm Street, Boston, MA 02115. No other institution outside the IRB list takes part.
 """
 
 [[protocol.section]]
@@ -265,6 +367,12 @@ Investigators and the sponsor keep all study records for one year after the inve
 citation = "21 CFR 812.140(d)"
 quote = "for a period of 2 years after the latter of the following two dates"
 issue = "Records are kept for one year; the regulation requires 2 years after the later of completion or the end of their use in a marketing submission."
+
+[[protocol.section]]
+heading = "Additional Records and Reports"
+text = """
+Beyond the records and reports required by 21 CFR 812 subpart G, the sponsor keeps the core laboratory's adjudication records and sends investigators a quarterly summary of device transmissions.
+"""
 
 [[protocol]]
 id = "ide-02"
@@ -293,18 +401,58 @@ issue = "A significant risk device study proceeds on IRB approval alone without 
 heading = "Study Procedures"
 text = """
 The sensor is implanted in the upper arm in an outpatient procedure. Subjects attend in-clinic sessions on Days 7, 30, 90, and 180 with venous sampling every 15 minutes for 8 hours.
+
+Accuracy is reported as the mean absolute relative difference between paired sensor and laboratory glucose values, with a 95 percent confidence interval. Thirty subjects give about 3,900 paired values, enough to estimate that difference within 2 percentage points.
+"""
+
+[[protocol.section]]
+heading = "Risk Analysis"
+text = """
+Risks include infection, bleeding, or bruising at the insertion site, sensor extrusion, and wrong insulin doses based on inaccurate readings. These are minimized by sterile implantation, wound checks on Day 7, and fingerstick confirmation of every reading before an insulin dose.
+
+The investigation is justified because a fully implanted sensor could remove the daily burden of external sensors. Subjects are 30 men and women aged 18 to 65 years who have had type 1 diabetes for at least 2 years.
+"""
+
+[[protocol.section]]
+heading = "Device Description"
+text = """
+The sensor is a 3.5 by 18 mm polymer cylinder holding a fluorescent glucose-indicating hydrogel, a light-emitting diode, and a photodetector. An external reader worn over the site powers the sensor and converts its fluorescence signal to a glucose value every 5 minutes. No change to the device is planned during the investigation.
 """
 
 [[protocol.section]]
 heading = "Monitoring"
 text = """
-The sponsor will not monitor sites during this feasibility study. Sites contact the sponsor if a problem arises.
+Site monitoring is arranged separately by the sponsor's clinical operations group and is not described in this investigational plan.
 """
 
 [protocol.section.violation]
 citation = "21 CFR 812.25(e)"
 quote = "The sponsor's written procedures for monitoring the investigation and the name and address of any monitor."
 issue = "The investigational plan has no written monitoring procedures and names no monitor."
+
+[[protocol.section]]
+heading = "Labeling"
+text = """
+Each sensor package bears the name and place of business of GlucoSense Inc., 12 Harbor Drive, San Diego, CA 92101, the quantity of contents, and the statement "CAUTION—Investigational device. Limited by Federal (or United States) law to investigational use." The Instructions for Use describe all relevant contraindications, hazards, adverse effects, interfering substances, warnings, and precautions. Appendix B contains copies of all labeling.
+"""
+
+[[protocol.section]]
+heading = "Informed Consent Materials"
+text = """
+Appendix C contains the consent form and the subject diary instructions given to subjects during the consent discussion.
+"""
+
+[[protocol.section]]
+heading = "IRB Information"
+text = """
+Appendix D lists the name, location, and chairperson of each site's IRB, with a copy of each IRB's approval letter.
+"""
+
+[[protocol.section]]
+heading = "Other Institutions"
+text = """
+Reference glucose is measured at Pacific Reference Laboratory, 400 Mesa Road, San Diego, CA 92121. No other institution takes part.
+"""
 
 [[protocol.section]]
 heading = "Protocol Deviations"
@@ -328,6 +476,12 @@ citation = "21 CFR 812.7(b)"
 quote = "charging the subjects or investigators for a device a price larger than that necessary to recover costs of manufacture, research, development, and handling"
 issue = "Subjects pay a commercial price that includes profit, which commercializes the investigational device."
 
+[[protocol.section]]
+heading = "Additional Records and Reports"
+text = """
+Beyond the records and reports required by 21 CFR 812 subpart G, sites keep the reader download files and the subjects' fingerstick logs.
+"""
+
 [[protocol]]
 id = "ide-03"
 domain = "IDE"
@@ -337,7 +491,59 @@ title = "Investigational Plan FK-300: Pivotal Study of the FlexKnee Total Knee I
 [[protocol.section]]
 heading = "Purpose"
 text = """
-FlexKnee is a cemented total knee implant with a mobile polyethylene bearing. The study enrolls 320 subjects at 20 sites to show non-inferior two-year survivorship compared with a performance goal. FlexKnee is a significant risk device and the IDE is approved.
+FlexKnee is a cemented total knee implant with a mobile polyethylene bearing, intended for primary total knee replacement in adults with osteoarthritis of the knee. The study enrolls 320 subjects at 20 sites to show that two-year survivorship exceeds a 95 percent performance goal. The investigation lasts about 4 years, 2 for enrollment and 2 for follow-up. FlexKnee is a significant risk device and the IDE is approved.
+"""
+
+[[protocol.section]]
+heading = "Follow-up Schedule"
+text = """
+Subjects return at 6 weeks, 6 months, 1 year, and 2 years for knee scores and standing radiographs. A core laboratory reads all radiographs blinded to site.
+
+Two-year survivorship, free of revision of any component, is estimated by the Kaplan-Meier method. With 320 subjects and 10 percent loss to follow-up, the study has 85 percent power to show that the lower 95 percent confidence bound exceeds the 95 percent performance goal.
+"""
+
+[[protocol.section]]
+heading = "Risk Analysis"
+text = """
+Risks are those of knee replacement surgery, such as infection, blood clots, stiffness, and loosening, plus bearing dislocation, which is specific to mobile bearings. They are minimized by surgeon training on the instruments, antibiotic and blood clot prophylaxis, and radiographic follow-up.
+
+The investigation is justified because a mobile bearing may reduce polyethylene wear. Subjects are 320 men and women aged 50 to 80 years with knee osteoarthritis that needs a primary total knee replacement.
+"""
+
+[[protocol.section]]
+heading = "Device Description"
+text = """
+FlexKnee has a cobalt-chromium femoral component, a titanium tibial tray, and a highly crosslinked polyethylene bearing that rotates on the tray. All components are fixed with bone cement. No change to the device is planned during the investigation.
+"""
+
+[[protocol.section]]
+heading = "Monitoring"
+text = """
+Monitors follow the sponsor's written monitoring procedures, SOP FK-MON-02, and visit each site at least twice a year. The lead monitor is David Osei, FlexKnee Orthopedics, 77 Commerce Street, Warsaw, IN 46580. Appendix E lists the name and address of every monitor.
+"""
+
+[[protocol.section]]
+heading = "Labeling"
+text = """
+Each component package bears the name and place of business of FlexKnee Orthopedics, the quantity of contents, and the statement "CAUTION—Investigational device. Limited by Federal (or United States) law to investigational use." The surgical technique guide describes all relevant contraindications, hazards, adverse effects, warnings, and precautions. Appendix B contains copies of all labeling.
+"""
+
+[[protocol.section]]
+heading = "Informed Consent Materials"
+text = """
+Appendix C contains the consent form that subjects review and sign before surgery.
+"""
+
+[[protocol.section]]
+heading = "IRB Information"
+text = """
+Appendix D lists the name, location, and chairperson of each IRB that has reviewed or will review the investigation, with a copy of each IRB's approval letter.
+"""
+
+[[protocol.section]]
+heading = "Other Institutions"
+text = """
+Radiographs are read at Midwest Imaging Core, 210 River Road, Chicago, IL 60606. No other institution takes part.
 """
 
 [[protocol.section]]
@@ -365,19 +571,13 @@ issue = "Studies presenting an unreasonable risk are not terminated within 5 wor
 [[protocol.section]]
 heading = "Device Accountability"
 text = """
-Implant components are stored in the hospital's general orthopedic inventory and are not tracked separately for the study.
+Implant components are kept in a locked study-only cabinet and used only for enrolled subjects, but investigators keep no log of their receipt, use, or disposition.
 """
 
 [protocol.section.violation]
 citation = "21 CFR 812.140(a)(2)"
 quote = "Records of receipt, use or disposition of a device"
 issue = "Investigators keep no records of receipt, use, or disposition of the investigational devices."
-
-[[protocol.section]]
-heading = "Follow-up Schedule"
-text = """
-Subjects return at 6 weeks, 6 months, 1 year, and 2 years for knee scores and standing radiographs. A core laboratory reads all radiographs blinded to site.
-"""
 
 [[protocol.section]]
 heading = "Final Report"
@@ -401,6 +601,12 @@ citation = "21 CFR 812.7(d)"
 quote = "Represent that an investigational device is safe or effective for the purposes for which it is being investigated."
 issue = "Patient brochures call the investigational device proven safe and effective."
 
+[[protocol.section]]
+heading = "Additional Records and Reports"
+text = """
+Beyond the records and reports required by 21 CFR 812 subpart G, the sponsor keeps the imaging core's radiographic reads and sends each IRB an annual summary of revisions.
+"""
+
 [[protocol]]
 id = "glp-01"
 domain = "GLP"
@@ -417,6 +623,8 @@ This study characterizes the toxicity of TX-401 given by oral gavage once daily 
 heading = "Test and Control Articles"
 text = """
 The test article is TX-401 (code TX-401-HCl, CAS 0000000-00-0). The control article is 0.5 percent methylcellulose in purified water.
+
+The sponsor determines and documents the identity, strength, purity, and composition of each batch of TX-401 and of the control article, and the stability of each before the study starts, and documents the method of synthesis. Reserve samples of each batch of test and control article are kept in the archive. TX-401 is suspended in the methylcellulose vehicle. Stability in that vehicle was shown before the study, and each formulation is analyzed for uniformity and concentration in Weeks 1 and 4.
 """
 
 [[protocol.section]]
@@ -437,9 +645,51 @@ quote = "The number, body weight range, sex, source of supply, species, strain, 
 issue = "The test system is not described by number, body weight range, sex, strain, or age."
 
 [[protocol.section]]
+heading = "Animal Identification"
+text = """
+Each animal is identified by a unique ear tattoo and by a cage card that shows the study number, animal number, and dose group.
+"""
+
+[[protocol.section]]
+heading = "Study Design"
+text = """
+Animals are assigned to the control and three dose groups by computer-generated randomization stratified by body weight. Recovery subgroups in the control and high-dose groups are kept for 14 days without dosing. Histopathology is read by a pathologist and reviewed by a second pathologist who does not know the dose group.
+"""
+
+[[protocol.section]]
+heading = "Diet and Vehicle"
+text = """
+Animals receive certified rodent diet and filtered tap water ad libitum. The supplier analyzes each diet lot for heavy metals, aflatoxins, pesticides, and PCBs, and only lots within the facility's written contaminant specifications are used. Water is analyzed twice a year against the same specifications. The only material used to suspend TX-401 is the 0.5 percent methylcellulose vehicle.
+"""
+
+[[protocol.section]]
 heading = "Dosage"
 text = """
 TX-401 is given at 0, 30, 100, and 300 mg/kg/day by oral gavage once daily at a dose volume of 10 mL/kg. The high dose is the maximum feasible dose based on a 7-day range-finding study.
+"""
+
+[[protocol.section]]
+heading = "Observations and Measurements"
+text = """
+Clinical observations are made twice daily, and body weight and food consumption are measured weekly. Hematology, clinical chemistry, coagulation, and urinalysis are done on Day 29 and at the end of recovery. All animals get a full necropsy with organ weights, and a full list of tissues is examined microscopically in the control and high-dose groups.
+"""
+
+[[protocol.section]]
+heading = "Records"
+text = """
+The study keeps the protocol and its amendments, all raw data, dose formulation records, test article receipt and use records, specimens, quality assurance reports, and the final report.
+"""
+
+[[protocol.section]]
+heading = "Statistical Methods"
+text = """
+Body weights, food consumption, clinical pathology values, and organ weights are compared between each dose group and the control with one-way analysis of variance followed by Dunnett's test, at a two-sided significance level of 0.05.
+"""
+
+[[protocol.section]]
+heading = "Protocol Approval"
+text = """
+The sponsor approved this protocol on 9 February 2026. The study director, Dr. Grace Imani, signed and dated it on 10 February 2026.
 """
 
 [[protocol.section]]
@@ -456,13 +706,13 @@ issue = "Quality assurance is performed by a member of the study's own in-life t
 [[protocol.section]]
 heading = "Data Recording"
 text = """
-Technicians record in-life observations in pencil on paper worksheets. A data clerk transcribes the worksheets into the study database each week and then discards the worksheets.
+Technicians record in-life observations in pencil on paper worksheets. A data clerk transcribes the worksheets into the study database each week, and the worksheets are kept as raw data.
 """
 
 [protocol.section.violation]
 citation = "21 CFR 58.130(e)"
 quote = "shall be recorded directly, promptly, and legibly in ink"
-issue = "Raw data are recorded in pencil and the originals are discarded after transcription."
+issue = "Raw data are recorded in pencil instead of ink."
 
 [[protocol]]
 id = "glp-02"
@@ -474,6 +724,20 @@ title = "Study DX-7-S01: Dermal Sensitization Study of Topical Formulation DX-7 
 heading = "Title and Purpose"
 text = """
 This study assesses the potential of DX-7 cream to cause delayed contact hypersensitivity, using the guinea pig maximization test.
+"""
+
+[[protocol.section]]
+heading = "Test and Control Articles"
+text = """
+The test article is DX-7 cream (code DX-7-C, batch 26A01). The control article is the cream base without DX-7 (code DX-7-V, batch 26V01), whose identity, strength, purity, and composition are determined and documented for its batch. The sponsor determined the stability of both articles before the study started.
+
+For the intradermal induction injections, each article is mixed with an emulsion of Freund's complete adjuvant. The uniformity, concentration, and stability of each mixture are analyzed before use.
+"""
+
+[[protocol.section]]
+heading = "Sponsor and Testing Facility"
+text = """
+The sponsor is Dermax Laboratories, Inc. The study is conducted at Northfield Preclinical Services, 45 Research Park Road, Durham, NC 27709.
 """
 
 [[protocol.section]]
@@ -490,7 +754,19 @@ issue = "The identity, strength, and purity of the test article batch are not de
 [[protocol.section]]
 heading = "Test System"
 text = """
-Thirty female Hartley guinea pigs from Elm Hill Breeding Labs, 5 to 8 weeks old and weighing 300 to 500 g, are used: 20 in the test group and 10 in the control group. Each animal is identified by an ear tag and a cage card.
+Thirty female Dunkin Hartley guinea pigs of the EH:DH substrain from Elm Hill Breeding Labs, 5 to 8 weeks old and weighing 300 to 500 g, are used: 20 in the test group and 10 in the control group. Each animal is identified by an ear tag and a cage card.
+"""
+
+[[protocol.section]]
+heading = "Study Design"
+text = """
+Animals are assigned to the test and control groups by computer-generated randomization. Challenge sites are scored by a technician who does not know the animal's group.
+"""
+
+[[protocol.section]]
+heading = "Diet"
+text = """
+Animals receive certified guinea pig diet with added vitamin C and filtered tap water ad libitum. The supplier analyzes each diet lot for heavy metals, aflatoxins, pesticides, and PCBs, and only lots within the facility's written contaminant specifications are used. No solvent or emulsifier other than the Freund's adjuvant emulsion is used with the test or control article.
 """
 
 [[protocol.section]]
@@ -503,6 +779,30 @@ Animals receive intradermal injections and topical applications of DX-7 during i
 citation = "21 CFR 58.120(a)(8)"
 quote = "Each dosage level, expressed in milligrams per kilogram of body weight or other appropriate units"
 issue = "The protocol gives no dosage levels or concentrations for induction and challenge."
+
+[[protocol.section]]
+heading = "Observations and Measurements"
+text = """
+Challenge sites are scored for erythema and edema on the Magnusson and Kligman scale 24 and 48 hours after the challenge patch is removed. Animals are observed daily for clinical signs and weighed on Days 0 and 23.
+"""
+
+[[protocol.section]]
+heading = "Records"
+text = """
+The study keeps the protocol and its amendments, all raw data including skin reaction scores, test article receipt and use records, quality assurance reports, and the final report.
+"""
+
+[[protocol.section]]
+heading = "Statistical Methods"
+text = """
+The proportion of animals with a positive challenge reaction is compared between the test and control groups with Fisher's exact test at a two-sided significance level of 0.05.
+"""
+
+[[protocol.section]]
+heading = "Protocol Approval"
+text = """
+The sponsor approved this protocol on 4 March 2026. The study director, Dr. Omar Haddad, signed and dated it on 5 March 2026.
+"""
 
 [[protocol.section]]
 heading = "Protocol Amendments"
@@ -539,6 +839,18 @@ This study evaluates the effects of RX-88 on embryo-fetal development when given
 """
 
 [[protocol.section]]
+heading = "Test and Control Articles"
+text = """
+The test article is RX-88 (code RX-88-01, CAS 0000000-00-1). The control article is 0.5 percent methylcellulose in purified water. The sponsor determines and documents the identity, strength, purity, and composition of each batch of RX-88 and of the control article, documents the method of synthesis, and determined the stability of each before the study started. Reserve samples of each batch of test and control article are kept in the archive. The stability of RX-88 suspended in the vehicle for 8 days under refrigeration was shown before the study started.
+"""
+
+[[protocol.section]]
+heading = "Sponsor and Testing Facility"
+text = """
+The sponsor is Rexon Pharma, Inc. The study is conducted at Northfield Preclinical Services, 45 Research Park Road, Durham, NC 27709.
+"""
+
+[[protocol.section]]
 heading = "Study Director"
 text = """
 Dosing begins under the supervision of the senior technician. Testing facility management will designate a study director once the in-life phase is complete.
@@ -552,7 +864,25 @@ issue = "No study director is designated before the study starts."
 [[protocol.section]]
 heading = "Test System"
 text = """
-Ninety-six time-mated female New Zealand White rabbits from Ridgeway Farms, 5 to 7 months old and weighing 3.0 to 4.5 kg, are assigned to four groups of 24. Each animal is identified by a tattoo and a cage card.
+Ninety-six time-mated female New Zealand White rabbits of the RF:NZW substrain from Ridgeway Farms, 5 to 7 months old and weighing 3.0 to 4.5 kg, are assigned to four groups of 24. Each animal is identified by a tattoo and a cage card.
+"""
+
+[[protocol.section]]
+heading = "Study Design"
+text = """
+Does are assigned to the four groups by computer-generated randomization stratified by body weight on gestation day 0. Fetal examinations are done by technicians who do not know the dose group.
+"""
+
+[[protocol.section]]
+heading = "Diet"
+text = """
+Animals receive certified rabbit diet and filtered tap water ad libitum. The supplier analyzes each diet lot for heavy metals, aflatoxins, pesticides, and PCBs, and only lots within the facility's written contaminant specifications are used. The only material used to suspend RX-88 is the 0.5 percent methylcellulose vehicle.
+"""
+
+[[protocol.section]]
+heading = "Dosage"
+text = """
+RX-88 is given by oral gavage once daily from gestation day 7 to 19 at 0, 10, 30, and 100 mg/kg/day, at a dose volume of 5 mL/kg. The high dose produced slight maternal toxicity in a dose range-finding study.
 """
 
 [[protocol.section]]
@@ -570,6 +900,30 @@ issue = "Test article mixtures are never tested for uniformity or concentration.
 heading = "Data Recording"
 text = """
 All raw data are recorded directly and promptly in ink or in the validated data collection system. Each entry is dated and initialed, and changes do not obscure the original entry and state a reason.
+"""
+
+[[protocol.section]]
+heading = "Observations and Measurements"
+text = """
+Does are observed twice daily and weighed on gestation days 0, 7, 10, 13, 16, 19, 24, and 29. On gestation day 29, does are euthanized and the uterine contents are examined. Each fetus is weighed, sexed, and examined for external, visceral, and skeletal changes.
+"""
+
+[[protocol.section]]
+heading = "Records"
+text = """
+The study keeps the protocol and its amendments, all raw data, dose formulation records, test article receipt and use records, fetal specimens, quality assurance reports, and the final report.
+"""
+
+[[protocol.section]]
+heading = "Statistical Methods"
+text = """
+Maternal body weights and fetal weights are compared between each dose group and the control with analysis of variance followed by Dunnett's test, with the litter as the unit of analysis. Fetal malformation and variation incidences are compared with Fisher's exact test on litter counts. Both use a two-sided significance level of 0.05.
+"""
+
+[[protocol.section]]
+heading = "Protocol Approval"
+text = """
+The sponsor approved this protocol on 12 January 2026. The study director signs and dates the protocol when designated.
 """
 
 [[protocol.section]]
@@ -593,12 +947,16 @@ title = "Informed Consent Form: A Phase 2 Study of MG-12 for the Prevention of M
 heading = "Purpose of the Study"
 text = """
 You are invited to take part in a research study. The study tests whether an experimental drug, MG-12, reduces the number of migraine days. Your participation will last about 20 weeks and includes eight clinic visits, a daily headache diary, and blood tests. MG-12 is experimental and is not approved by FDA.
+
+You will be assigned by chance, like flipping a coin, to take either MG-12 or a placebo, a pill with no active drug. Neither you nor the study team will know which one you take. About 300 people will take part in this study.
 """
 
 [[protocol.section]]
 heading = "Risks and Discomforts"
 text = """
 In earlier studies, the most common side effects of MG-12 were nausea, tiredness, and dizziness. Blood draws may cause bruising. There may be risks that are not yet known.
+
+MG-12 may harm an unborn baby in ways that are not yet known. You cannot take part if you are pregnant or breastfeeding, and you must use effective birth control during the study.
 """
 
 [[protocol.section]]
@@ -653,6 +1011,18 @@ For questions about the study or a research-related injury, call Dr. Rana Malik 
 """
 
 [[protocol.section]]
+heading = "Other Things to Know"
+text = """
+MG-12, placebo, and all study visits and tests are provided at no cost to you. The study doctor may take you out of the study without your consent if staying in would harm you, if you become pregnant, or if the sponsor stops the study. If you decide to leave the study, the study doctor will ask you to come to a final safety visit. We will tell you about any new findings during the study that might affect your willingness to stay in it.
+"""
+
+[[protocol.section]]
+heading = "ClinicalTrials.gov"
+text = """
+A description of this clinical trial will be available on http://www.ClinicalTrials.gov, as required by U.S. Law. This Web site will not include information that can identify you. At most, the Web site will include a summary of the results. You can search this Web site at any time.
+"""
+
+[[protocol.section]]
 heading = "Consent"
 text = """
 The study coordinator will explain this form and record your verbal agreement in the study log. You do not need to sign this form.
@@ -678,7 +1048,7 @@ This open-label Phase 3 trial randomizes 600 patients with metastatic colorectal
 [[protocol.section]]
 heading = "IRB Membership"
 text = """
-The Riverside Cancer Center IRB reviews this protocol. It is a three-member committee made up of two oncologists and the hospital chaplain.
+The Riverside Cancer Center IRB reviews this protocol. It is a three-member committee. Dr. Luis Alvarez is an oncologist at the center. Rev. Anne Lowe is the center's chaplain. James Okafor is a retired schoolteacher who is not affiliated with the center and has no immediate family member who is.
 """
 
 [protocol.section.violation]
@@ -741,6 +1111,38 @@ This research study tests whether a single infusion of an experimental gene ther
 heading = "Risks"
 text = """
 GT-301 may cause liver inflammation, infusion reactions, and an immune response against the vector. The long-term effects of gene therapy are not known.
+
+GT-301 could harm an unborn child in ways that are not yet known. You and any partner must use effective birth control for 12 months after the infusion.
+"""
+
+[[protocol.section]]
+heading = "Possible Benefits"
+text = """
+GT-301 may raise your factor IX activity enough to reduce bleeding episodes, but this is not certain. What we learn may help other people with hemophilia B.
+"""
+
+[[protocol.section]]
+heading = "Confidentiality"
+text = """
+Your study records are identified by a code number and kept confidential to the extent permitted by law. The Food and Drug Administration, the sponsor, and the IRB may inspect records that identify you.
+"""
+
+[[protocol.section]]
+heading = "Research-Related Injury"
+text = """
+If you are injured because of this study, the study doctor will give you or arrange medical treatment. The sponsor pays for that treatment, and no other compensation is offered. The sponsor's injury policy, given to you with this form, explains what the treatment covers.
+"""
+
+[[protocol.section]]
+heading = "Voluntary Participation"
+text = """
+Taking part in this study is voluntary. If you choose not to take part, you will not be penalized or lose any benefits to which you are otherwise entitled. You may stop taking part at any time without penalty or loss of benefits to which you are otherwise entitled.
+"""
+
+[[protocol.section]]
+heading = "Other Things to Know"
+text = """
+GT-301 and all study visits and tests are provided at no cost to you. The study doctor may take you out of the study without your consent if staying in would harm you or if the sponsor stops the study. GT-301 cannot be removed once it is given, so if you leave the study we will ask you to keep coming to safety visits. We will tell you about any new findings that might affect your willingness to stay in the study. About 24 people will take part in this study.
 """
 
 [[protocol.section]]
