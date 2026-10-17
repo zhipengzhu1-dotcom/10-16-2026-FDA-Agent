@@ -106,3 +106,24 @@ def test_every_eval_label_is_in_its_question_domain() -> None:
     ]
 
     assert outside == []
+
+
+def test_a_domain_filter_keeps_in_domain_keyword_hits_that_rank_below_500_others(
+    conn: psycopg.Connection,
+) -> None:
+    upsert(
+        conn,
+        [section(f"21 CFR 312.{n}", "Study.", "study study study") for n in range(600)]
+        + [section(f"21 CFR 58.90({n})", "Animal care.", "Records are kept.") for n in range(60)],
+    )
+    embed_corpus(conn, FakeEmbedder())
+    animal_care = FakeEmbedder().embed(["Animal care.\n\nRecords are kept."], "query").vectors[0]
+    glp = HybridRetriever(conn, "fake", lambda _query: animal_care, Domain.GLP)
+
+    hits = glp.retrieve("study", 3)
+
+    assert [hit.section.citation for hit in hits] == [
+        "21 CFR 58.33",
+        "21 CFR 58.90(0)",
+        "21 CFR 58.90(1)",
+    ]

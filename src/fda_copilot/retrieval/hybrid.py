@@ -11,8 +11,6 @@ from fda_copilot.retrieval.retriever import RetrievalResult
 
 RRF_K = 60
 DEPTH = 50
-# The keyword leg cannot filter by domain in SQL, so it over-fetches and filters here.
-KEYWORD_FETCH = 500
 
 _HUMAN_SUBJECTS = frozenset({Domain.IND, Domain.IDE, Domain.GCP})
 
@@ -71,33 +69,28 @@ class HybridRetriever:
         self._conn = conn
         self._model = model
         self._embed_query = embed_query
-        self._domain = domain
-        self._keyword = KeywordRetriever(conn)
+        self._prefixes = (
+            None
+            if domain is None
+            else [prefix for prefix, domains in DOCUMENT_DOMAINS.items() if domain in domains]
+        )
+        self._keyword = KeywordRetriever(conn, self._prefixes)
 
     def retrieve(self, query: str, k: int) -> list[RetrievalResult]:
-        keyword = [
-            hit.section
-            for hit in self._keyword.retrieve(query, KEYWORD_FETCH)
-            if self._domain is None or self._domain in domains_of(hit.section.citation)
-        ][:DEPTH]
+        keyword = [hit.section for hit in self._keyword.retrieve(query, DEPTH)]
         vector = self._nearest(self._embed_query(query))
         sections = {section.citation: section for section in keyword + vector}
         fused = fuse([[s.citation for s in keyword], [s.citation for s in vector]])
         return [RetrievalResult(sections[citation], score) for citation, score in fused[:k]]
 
     def _nearest(self, vector: Sequence[float]) -> list[RegSection]:
-        prefixes = (
-            None
-            if self._domain is None
-            else [prefix for prefix, domains in DOCUMENT_DOMAINS.items() if self._domain in domains]
-        )
         with self._conn.cursor(row_factory=dict_row) as cur:
             rows = cur.execute(
                 _NEAREST,
                 {
                     "vector": to_pgvector(vector),
                     "model": self._model,
-                    "prefixes": prefixes,
+                    "prefixes": self._prefixes,
                     "depth": DEPTH,
                 },
             ).fetchall()
