@@ -21,6 +21,20 @@ def digest_path(snapshot: Path) -> Path:
     return snapshot.with_name(snapshot.name + ".sha256")
 
 
+def write_pinned(snapshot: Path, data: bytes) -> None:
+    snapshot.write_bytes(data)
+    digest_path(snapshot).write_text(hashlib.sha256(data).hexdigest() + "\n")
+
+
+def read_pinned(snapshot: Path) -> bytes:
+    data = snapshot.read_bytes()
+    expected = digest_path(snapshot).read_text().strip()
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        raise ValueError(f"{snapshot.name}: sha256 {actual} but the pin is {expected}")
+    return data
+
+
 def dump(conn: psycopg.Connection, snapshot: Path) -> int:
     with conn.cursor(row_factory=dict_row) as cur:
         rows = cur.execute(
@@ -28,19 +42,13 @@ def dump(conn: psycopg.Connection, snapshot: Path) -> int:
             " ORDER BY citation, effective_date"
         ).fetchall()
     lines = "".join(RegSection.model_validate(row).model_dump_json() + "\n" for row in rows)
-    data = gzip.compress(lines.encode(), mtime=0)
-    snapshot.write_bytes(data)
-    digest_path(snapshot).write_text(hashlib.sha256(data).hexdigest() + "\n")
+    write_pinned(snapshot, gzip.compress(lines.encode(), mtime=0))
     return len(rows)
 
 
 def load(conn: psycopg.Connection, snapshot: Path) -> int:
-    data = snapshot.read_bytes()
-    expected = digest_path(snapshot).read_text().strip()
-    actual = hashlib.sha256(data).hexdigest()
-    if actual != expected:
-        raise ValueError(f"{snapshot.name}: sha256 {actual} but the pin is {expected}")
-    sections = [RegSection.model_validate_json(line) for line in gzip.decompress(data).splitlines()]
+    data = gzip.decompress(read_pinned(snapshot))
+    sections = [RegSection.model_validate_json(line) for line in data.splitlines()]
     with conn.transaction():
         for migration in sorted(MIGRATIONS.glob("*.sql")):
             conn.execute(migration.read_text())
