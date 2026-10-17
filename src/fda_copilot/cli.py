@@ -1,14 +1,16 @@
 import argparse
 import os
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import psycopg
 
 from fda_copilot.corpus import ecfr, guidance, store
+from fda_copilot.documents.parse import UnsupportedDocument, parse_document
 
 
-def main(argv: Sequence[str] | None = None) -> None:
+def main(argv: Sequence[str] | None = None) -> int | None:
     parser = argparse.ArgumentParser(prog="fda-copilot")
     commands = parser.add_subparsers(required=True)
     ingest = commands.add_parser("ingest").add_subparsers(required=True)
@@ -27,8 +29,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="where downloaded PDFs are kept; they are untrusted input checked by SHA-256",
     )
     ingest_guidance_parser.set_defaults(run=ingest_guidance)
+    _add_parse_command(commands)
     args = parser.parse_args(argv)
-    args.run(args)
+    exit_code: int | None = args.run(args)
+    return exit_code
 
 
 def ingest_cfr(args: argparse.Namespace) -> None:
@@ -58,3 +62,21 @@ def ingest_guidance(args: argparse.Namespace) -> None:
         print(f"{source.citation}: {len(sections)} rows, {changed} changed")
     rows = sum(len(sections) for _, sections, _ in changes)
     print(f"total: {rows} rows, {sum(changed for _, _, changed in changes)} changed")
+
+
+def _add_parse_command(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
+    command = commands.add_parser("parse", help="split a .docx or .pdf into sections")
+    command.add_argument("file", type=Path)
+    command.set_defaults(run=_parse)
+
+
+def _parse(args: argparse.Namespace) -> int:
+    path: Path = args.file
+    try:
+        document = parse_document(path.name, path.read_bytes())
+    except (OSError, UnsupportedDocument) as error:
+        print(f"fda-copilot parse: {error}", file=sys.stderr)
+        return 1
+    for section in document.sections:
+        print(f"{section.span.start}-{section.span.end}\t{section.heading}")
+    return 0
