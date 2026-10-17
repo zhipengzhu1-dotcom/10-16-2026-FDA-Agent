@@ -199,6 +199,23 @@ def test_a_wrong_pin_on_the_last_source_writes_nothing(
     assert (written, after_a_good_run) == ((0,), (7,))
 
 
+def _blank_pdf() -> bytes:
+    with pymupdf.open() as document:
+        document.new_page()
+        blank: bytes = document.tobytes()
+    return blank
+
+
+@pytest.mark.parametrize(
+    ("pdf", "reason"),
+    [(FIXTURE[: len(FIXTURE) // 2], "Failed to open stream"), (_blank_pdf(), "it has no text")],
+    ids=["truncated", "blank"],
+)
+def test_a_pdf_that_cannot_be_read_is_refused_by_source_key(pdf: bytes, reason: str) -> None:
+    with pytest.raises(ValueError, match=f"^fixture: cannot read its PDF: {reason}"):
+        guidance.parse(SOURCE, pdf)
+
+
 def test_an_integer_heading_that_skips_a_number_stays_body_text() -> None:
     lines = [
         Line(1, "I. INTRODUCTION", True),

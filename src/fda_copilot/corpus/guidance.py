@@ -154,7 +154,10 @@ def _outline(pdf: bytes) -> list[_Entry]:
 
 
 def body(source: Source, pdf: bytes) -> list[Line]:
-    lines = read_lines(pdf)
+    try:
+        lines = read_lines(pdf)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(f"{source.key}: cannot read its PDF: {error}") from error
     start = next(
         (i for i, line in enumerate(lines) if line.text == source.first_body_heading), None
     )
@@ -172,6 +175,8 @@ def read_lines(pdf: bytes) -> list[Line]:
     for page in pages:
         for line in page.lines:
             sizes[line.size] += len(line.text)
+    if not sizes:
+        raise ValueError("it has no text")
     body_size = sizes.most_common(1)[0][0]
     pages = [page._replace(lines=_attach_markers(page.lines, body_size)) for page in pages]
     counts = Counter(
