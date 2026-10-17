@@ -7,6 +7,13 @@ from pathlib import Path
 import psycopg
 
 from fda_copilot.corpus import ecfr, guidance, store
+from fda_copilot.corpus.embed import (
+    DEFAULT_MODEL,
+    MODELS,
+    MissingApiKey,
+    VoyageEmbedder,
+    embed_corpus,
+)
 from fda_copilot.documents.parse import UnsupportedDocument, parse_document
 
 
@@ -29,6 +36,9 @@ def main(argv: Sequence[str] | None = None) -> int | None:
         help="where downloaded PDFs are kept; they are untrusted input checked by SHA-256",
     )
     ingest_guidance_parser.set_defaults(run=ingest_guidance)
+    embed = commands.add_parser("embed", help="embed every RegSection whose text changed")
+    embed.add_argument("--model", choices=MODELS, default=DEFAULT_MODEL)
+    embed.set_defaults(run=_embed)
     _add_parse_command(commands)
     args = parser.parse_args(argv)
     exit_code: int | None = args.run(args)
@@ -62,6 +72,21 @@ def ingest_guidance(args: argparse.Namespace) -> None:
         print(f"{source.citation}: {len(sections)} rows, {changed} changed")
     rows = sum(len(sections) for _, sections, _ in changes)
     print(f"total: {rows} rows, {sum(changed for _, _, changed in changes)} changed")
+
+
+def _embed(args: argparse.Namespace) -> int:
+    try:
+        embedder = VoyageEmbedder.from_env(args.model)
+    except MissingApiKey as error:
+        print(f"fda-copilot embed: {error}", file=sys.stderr)
+        return 1
+    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
+        run = embed_corpus(conn, embedder)
+    print(
+        f"{args.model}: {run.embedded} embedded, {run.unchanged} unchanged,"
+        f" {run.tokens} Voyage tokens"
+    )
+    return 0
 
 
 def _add_parse_command(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:

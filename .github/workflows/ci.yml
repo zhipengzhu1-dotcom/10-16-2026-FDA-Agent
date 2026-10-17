@@ -24,9 +24,13 @@ jobs:
       - run: uv run pytest
       - run: uv run python scripts/corpus_snapshot.py load
       - run: uv run python evals/retrieval/run.py --retriever keyword --json retrieval-keyword.json
+      - if: hashFiles('evals/retrieval/embeddings-*.json.gz') != ''
+        run: |
+          uv run python scripts/embedding_snapshot.py load
+          uv run python evals/retrieval/run.py --retriever hybrid --json retrieval-hybrid.json
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: retrieval-keyword
-          path: retrieval-keyword.json
+          name: retrieval
+          path: retrieval-*.json
           if-no-files-found: ignore

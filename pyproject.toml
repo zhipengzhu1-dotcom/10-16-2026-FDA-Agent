@@ -49,3 +49,4 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib"]
+pythonpath = ["tests"]
