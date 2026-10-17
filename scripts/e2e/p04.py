@@ -1,9 +1,4 @@
-"""Usage: p04.py PDF_DIR. Reads DATABASE_URL. Exits 1 on any failure.
-
-The expected text comes from poppler's pdftotext (pymupdf's plain text when poppler is missing),
-and furniture is found without the chunker's rules: a line among the first or last few lines of
-a page whose digit-normalized form repeats on enough pages, peeled from the page edges inward.
-"""
+"""Usage: p04.py PDF_DIR. Reads DATABASE_URL. Exits 1 on any failure."""
 
 import math
 import os
@@ -48,7 +43,7 @@ def shape(line: str) -> str:
     return re.sub(r"\d+", "#", line)
 
 
-def furniture(pages: list[list[str]]) -> set[str]:
+def repeated_edge_lines(pages: list[list[str]]) -> set[str]:
     counts = Counter(
         repeated
         for lines in pages
@@ -111,7 +106,7 @@ def main() -> int:
     for source in guidance.load_sources():
         rows = rows_by_source[source.key]
         pages = page_lines(pdf_dir / f"{source.key}.pdf")
-        removed = furniture(pages)
+        removed = repeated_edge_lines(pages)
         bodies = [strip_edges(lines, removed) for lines in pages]
         start = min(page_of(url) for _, _, url in rows)
         first = next(
